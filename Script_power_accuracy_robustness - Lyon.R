@@ -269,6 +269,14 @@ MEMsub <- MEM[sort, ]
 # *******************************************************************
 y_sub <- y_broad[sort, ]
 
+# Real p-value and R2_sub:
+# ************************
+x <- MEMsub[, c(1, 3, 5)]
+lm <- lm(y_sub ~ ., data = x)
+R2_sub <- summary(lm)$adj.r.squared
+resultsB_pop[31, c(2009+i, 3009+i)] <- R2_sub
+resultsB_pop[33, 9+i] <- lmp(lm)
+
 # Visualisation:
 # **************
 # par(mfrow = c(1, 3))
@@ -379,5 +387,63 @@ Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C,
 # *************************
 Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, 
                        MEM.autocor = MEM_model)
+
+# Significance test and MEM var. selection (fwd.sel with double stopping criterion):
+# **********************************************************************************
+# **********************************************************************************
+# del
+R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM$best$MEM))$adj.r.squared
+if (anova.cca(rda(y_sub, Y.del.MEM$best$MEM), permutations = 9999)$Pr[1] <= 0.05) {
+  class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM$best$MEM, 
+                                         adjR2thresh = R2adj, nperm = 999), TRUE))
+  if(class != "try-error"){
+    sign <- sort(fsel$order)
+    MEM.FwdSel <- Y.del.MEM$best$MEM[, c(sign)]
+    resultsB_pop[1, i+5] <- as.data.frame(anova.cca(rda(Y, MEM.FwdSel)))$Pr[1]
+    resultsB[1, i+1005] <- resultsB[22, 1005+i] - RsquareAdj(rda(Y, MEM.FwdSel))$adj.r.squared
+  } } else{ 
+    resultsB[1, i+5] <- 1   # p-val made equal to 1 (we did not even enter the fwd sel)
+    resultsB[1, i+1005] <- NA
+  }  
+
+
+
+R2adj <- RsquareAdj(rda(Y, Y.del.MEM.w.f1$best$MEM))$adj.r.squared
+if(anova.cca(rda(Y, Y.del.MEM.w.f1$best$MEM))$Pr[1] <= 0.05){
+  class <- class(try(fsel <- forward.sel(Y, Y.del.MEM.w.f1$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+  if(class != "try-error"){
+    sign <- sort(fsel$order)
+    MEM.FwdSel <- Y.del.MEM.w.f1$best$MEM[, c(sign)]
+    resultsB[2, i+5] <- as.data.frame(anova.cca(rda(Y, MEM.FwdSel)))$Pr[1]
+    resultsB[2, i+1005] <- resultsB[22, 1005+i] - RsquareAdj(rda(Y, MEM.FwdSel))$adj.r.squared
+  } } else{ 
+    resultsB[2, i+5] <- 1   # p-val made equal to 1 (we did not even enter the fwd sel)
+    resultsB[2, i+1005] <- NA
+  }  
+R2adj <- RsquareAdj(rda(Y, Y.del.MEM.w.f2$best$MEM))$adj.r.squared
+if(anova.cca(rda(Y, Y.del.MEM.w.f2$best$MEM))$Pr[1] <= 0.05){
+  class <- class(try(fsel <- forward.sel(Y, Y.del.MEM.w.f2$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+  if(class != "try-error"){
+    sign <- sort(fsel$order)
+    MEM.FwdSel <- Y.del.MEM.w.f2$best$MEM[, c(sign)]
+    resultsB[3, i+5] <- as.data.frame(anova.cca(rda(Y, MEM.FwdSel)))$Pr[1]
+    resultsB[3, i+1005] <- resultsB[22, 1005+i] - RsquareAdj(rda(Y, MEM.FwdSel))$adj.r.squared
+  } } else{ 
+    resultsB[3, i+5] <- 1   # p-val made equal to 1 (we did not even enter the fwd sel)
+    resultsB[3, i+1005] <- NA
+  }  
+R2adj <- RsquareAdj(rda(Y, Y.del.MEM.w.f3$best$MEM))$adj.r.squared
+if(anova.cca(rda(Y, Y.del.MEM.w.f3$best$MEM))$Pr[1] <= 0.05){
+  class <- class(try(fsel <- forward.sel(Y, Y.del.MEM.w.f3$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+  if(class != "try-error"){
+    sign <- sort(fsel$order)
+    MEM.FwdSel <- Y.del.MEM.w.f3$best$MEM[, c(sign)]
+    resultsB[4, i+5] <- as.data.frame(anova.cca(rda(Y, MEM.FwdSel)))$Pr[1]
+    resultsB[4, i+1005] <- resultsB[22, 1005+i] - RsquareAdj(rda(Y, MEM.FwdSel))$adj.r.squared
+  } } else{ 
+    resultsB[4, i+5] <- 1   # p-val made equal to 1 (we did not even enter the fwd sel)
+    resultsB[4, i+1005] <- NA
+  }  
+
 
 
