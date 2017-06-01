@@ -115,7 +115,7 @@ resultsM_sub[33, ] <- c(1:ncol(resultsM_sub))
 # The MEM are built for a full grid (50 x 25 cells):
 # **************************************************
 
-xy <- expand.grid(x = seq(1, 50, 1), y = seq(1, 25, 1))
+xy <- expand.grid(x = seq(0.02, 1, 0.02), y = seq(0.04, 1, 0.04))
 # plot(xy, cex = 1)
 
 nb <- cell2nb(nrow = 25, ncol = 50, "queen")
@@ -195,64 +195,54 @@ MEMsub.list <- vector("list", nperm)
 
 for (i in 1:nperm) {
 
-# Sampling scheme:
-# ****************
-
-if (design == "clustered") {
-  C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  set.seed(i)
-  x1 <- runif(39, min = 2, max = 14)
-  y1 <- runif(39, min = 17, max = 25)
-  x2 <- runif(39, min = 19, max = 34)
-  y2 <- runif(39, min = 15, max = 25)
-  x3 <- runif(39, min = 30, max = 50)
-  y3 <- runif(39, min = 1, max = 10)
+  # Sampling scheme:
+  # ****************
   
-  C[,1] <- rbind(x1, x2, x3)
-  C[,2] <- rbind(y1, y2, y3)
-
-#  x1 <- rnorm(39, mean = 0.3, sd = 0.07)
-#  y1 <- rnorm(39, mean = 0.7, sd = 0.07)
-#  x2 <- rnorm(39, mean = 0.65, sd = 0.07)
-#  y2 <- rnorm(39, mean = 0.7, sd = 0.07)
-#  x3 <- rnorm(39, mean = 1.1, sd = 0.07)
-#  y3 <- rnorm(39, mean = 0.4, sd = 0.07)
-#  C[,1] <- rbind(x1, x2, x3)
-#  C[,2] <- rbind(y1, y2, y3)
-#  C[, 1] <- C[, 1] / min(C[, 1])
-#  C[, 2] <- C[, 2] / min(C[, 2])
-#  C[, 1] <- (C[, 1] / max(C[, 1])) * 50
-#  C[, 2] <- (C[, 2] / max(C[, 2])) * 25
+  if (design == "clustered") {
+    C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
+    set.seed(i)
+    x1 <- runif(39, min = 0.04, max = 0.28)
+    y1 <- runif(39, min = 0.34, max = 0.5)
+    x2 <- runif(39, min = 0.38, max = 0.68)
+    y2 <- runif(39, min = 0.3, max = 0.5)
+    x3 <- runif(39, min = 0.6, max = 1)
+    y3 <- runif(39, min = 0.02, max = 0.2)
+    
+    C[,1] <- rbind(x1, x2, x3)
+    C[,2] <- rbind(y1, y2, y3)
+    
+    xy.d1 <- dist(C)
+    
+  } else {          # design = "random"
+    
+    C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
+    set.seed(i)
+    C[,1] <- runif(117, min = 0.02, max = 1)
+    C[,2] <- runif(117, min = 0.02, max = 0.5) 
+    
+    xy.d1 <- dist(C)
+  }
   
-  xy.d1 <- dist(C)
+  # Attribute each sampled point to one of the grid cells:
+  # ******************************************************
   
-} else {          # design = "random"
+  # /25 = taille d'un côté du quadrat ; pour que la numérotation des quadrats se
+  # fasse de gauche à droite en partant du coin inférieur gauche de la grille :
+  # N <- y * (nb horizontal de quadrats) + x + 1 ; pour que la numérotation des 
+  # quadrats se fasse de bas en haut en partant du coin inférieur gauche :
+  # N <- x * (nb vertical de quadrats) + y + 1
   
-  C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  set.seed(i)
-  C[,1] <- runif(117, min = 1, max = 50)
-  C[,2] <- runif(117, min = 1, max = 25) 
+  # Comme les coord. sont comprises entre 0.02 et 1 et 0.02 et 0.5, on les multiplie
+  # par 50 (momentanément) pour attributer une cellule à chaque point.
   
-  xy.d1 <- dist(C)
-}
-
-# Attribute each sampled point to one of the grid cells:
-# ******************************************************
-
-# /25 = taille d'un côté du quadrat ; pour que la numérotation des quadrats se
-# fasse de gauche à droite en partant du coin inférieur gauche de la grille :
-# N <- y * (nb horizontal de quadrats) + x + 1 ; pour que la numérotation des 
-# quadrats se fasse de bas en haut en partant du coin inférieur gauche :
-# N <- x * (nb vertical de quadrats) + y + 1
-
-grid.size <- 1
-tri <- c()
-for (k in 1:nrow(C)) {
-  x <- floor(C[k, 1]/grid.size)
-  y <- floor(C[k, 2]/grid.size)
-  N <- y * 50 + x + 1
-  tri <- c(tri, N)
-}
+  grid.size <- 0.02
+  tri <- c()
+  for (k in 1:nrow(C)) {
+    x <- floor((C[k, 1] * 50) / (grid.size * 50))
+    y <- floor((C[k, 2] * 50) / (grid.size * 50))
+    N <- y * 50 + x + 1
+    tri <- c(tri, N)
+  }
 
 # We can only have one sampled point by grid cell:
 # ************************************************
@@ -1756,13 +1746,12 @@ set.seed(1)
 
 if (design == "clustered") {
   C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  x1 <- runif(39, min = 2, max = 14)
-  y1 <- runif(39, min = 17, max = 25)
-  x2 <- runif(39, min = 19, max = 34)
-  y2 <- runif(39, min = 15, max = 25)
-  x3 <- runif(39, min = 30, max = 50)
-  y3 <- runif(39, min = 1, max = 10)
-  
+  x1 <- runif(39, min = 0.04, max = 0.28)
+  y1 <- runif(39, min = 0.34, max = 0.5)
+  x2 <- runif(39, min = 0.38, max = 0.68)
+  y2 <- runif(39, min = 0.3, max = 0.5)
+  x3 <- runif(39, min = 0.6, max = 1)
+  y3 <- runif(39, min = 0.02, max = 0.2)
   C[,1] <- rbind(x1, x2, x3)
   C[,2] <- rbind(y1, y2, y3)
   
@@ -1771,8 +1760,8 @@ if (design == "clustered") {
 } else {          # design = "random"
   
   C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  C[,1] <- runif(117, min = 1, max = 50)
-  C[,2] <- runif(117, min = 1, max = 25) 
+  C[,1] <- runif(117, min = 0.02, max = 1)
+  C[,2] <- runif(117, min = 0.02, max = 0.5) 
   
   xy.d1 <- dist(C)
 }
@@ -1780,11 +1769,11 @@ if (design == "clustered") {
 # Attribute each sampled point to one of the grid cells:
 # ******************************************************
 
-grid.size <- 1
+grid.size <- 0.02
 tri <- c()
 for (k in 1:nrow(C)) {
-  x <- floor(C[k, 1]/grid.size)
-  y <- floor(C[k, 2]/grid.size)
+  x <- floor((C[k, 1] * 50) / (grid.size * 50))
+  y <- floor((C[k, 2] * 50) / (grid.size * 50))
   N <- y * 50 + x + 1
   tri <- c(tri, N)
 }
