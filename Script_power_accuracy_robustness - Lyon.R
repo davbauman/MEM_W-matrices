@@ -25,7 +25,7 @@ MEM_model = "positive"   # Either "positive" or "negative"
 # Sampling design:
 design <- "clustered"    # Either "clustered" or "random"
 
-nperm <- 1000
+nperm <- 3
 
 # Structuring Intensity (low or high):
 a <- 0.35   # 0.35 or 0.55
@@ -1895,7 +1895,7 @@ Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim,
 
 for (i in 1:nperm) { 
   
-  seed(i)
+  set.seed(i)
   
   y_noise <- rnorm(n = nrow(MEM), mean = 0, sd = 1)
   y_noise_st <- scale(y_noise)
@@ -2571,7 +2571,7 @@ write.table(resultsB_sub, file = res_file_name, sep = "\t")
 
 for (i in 1:nperm) {
   
-  seed(i)
+  set.seed(i)
   
   y_noise <- rnorm(n = nrow(MEM), mean = 0, sd = 1)
   y_noise_st <- scale(y_noise)
