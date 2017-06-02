@@ -1,4 +1,4 @@
-﻿
+
 ##### Script du test de puissance, précision et robustesse de différentes #####
 ### matrices W vis-à-vis du type de design d'échantillonnage, de l'échelle ####
 ### spatiale de la structuration, d'un point de vue de la population réelle ###
@@ -38,8 +38,8 @@ if (style == "B") {
     source("test.W.R2_styleB.R") 
 } else source("test.W.R2_styleW.R") 
 
-# Construction of a results matrix for each scale:
-# ************************************************
+# Construction of the results matrices :
+# **************************************
 # Les résultats _pop font référence à ce qui se passe en gardant 'y' fixe et
 # en faisant varier le design d'échantillonnage. 
 # Les résultats _sub font référence à ce qui se passe en maintenant le design
@@ -969,10 +969,10 @@ if (anova.cca(rda(y_sub, Y.DB.PCNM$best$MEM), permutations = 9999)$Pr[1] <= 0.05
 
 } # End of the simulation ('for') loop
 
-# Median and standard deviation of the deltaR2:
-# *********************************************
+# Summary of the results:
+# ***********************
 
-for (i in 1:nrow(resultsB_pop)) {
+for (i in 1:nrow(resultsB_pop)-1) {
   resultsB_pop[i, 3] <- length(which(resultsB_pop[i, c(10:(nperm + 9))] 
                                      <= 0.05)) / nperm
   resultsB_pop[i, 4] <- median(na.omit(as.numeric(resultsB_pop[i, c(1010:(nperm + 
@@ -1703,7 +1703,7 @@ for (i in 1:nperm) {
 # Median and standard deviation of the deltaR2:
 # *********************************************
 
-for (i in 1:nrow(resultsM_pop)) {
+for (i in 1:nrow(resultsM_pop)-1) {
   resultsM_pop[i, 3] <- length(which(resultsM_pop[i, c(10:(nperm + 9))] 
                                      <= 0.05)) / nperm
   resultsM_pop[i, 4] <- median(na.omit(as.numeric(resultsM_pop[i, c(1010:(nperm + 
@@ -2529,7 +2529,7 @@ for (i in 1:nperm) {
 # Median and standard deviation of the deltaR2:
 # *********************************************
 
-for (i in 1:nrow(resultsB_sub)) {
+for (i in 1:nrow(resultsB_sub)-1) {
   resultsB_sub[i, 3] <- length(which(resultsB_sub[i, c(10:(nperm + 9))] 
                                      <= 0.05)) / nperm
   resultsB_sub[i, 4] <- median(na.omit(as.numeric(resultsB_sub[i, c(1010:(nperm + 
@@ -3205,7 +3205,7 @@ for (i in 1:nperm) {
 # Median and standard deviation of the deltaR2:
 # *********************************************
 
-for (i in 1:nrow(resultsM_sub)) {
+for (i in 1:nrow(resultsM_sub)-1) {
   resultsM_sub[i, 3] <- length(which(resultsM_sub[i, c(10:(nperm + 9))] 
                                      <= 0.05)) / nperm
   resultsM_sub[i, 4] <- median(na.omit(as.numeric(resultsM_sub[i, c(1010:(nperm + 
