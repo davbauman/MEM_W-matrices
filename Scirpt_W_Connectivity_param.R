@@ -13,9 +13,10 @@ library(spdep)
 # ****************************************
 
 # Sampling design:
-design <- "clustered"    # Either "clustered" or "random"
 
-nperm <- 3
+design <- "random"    # Either "clustered" or "random"
+
+nperm <- 1000
 
 # Results matrices for the connectivity parameters of the different W matrices:
 # *****************************************************************************
@@ -139,26 +140,6 @@ for (i in 1:nperm) {
 # Summary of the results:
 # ***********************
 
-for (i in 1:nrow(resultsB_pop)-1) {
-  resultsB_pop[i, 3] <- length(which(resultsB_pop[i, c(10:(nperm + 9))] 
-                                     <= 0.05)) / nperm
-  resultsB_pop[i, 4] <- median(na.omit(as.numeric(resultsB_pop[i, c(1010:(nperm + 
-                                                                            1009))])))
-  resultsB_pop[i, 5] <- sd(na.omit(as.numeric(resultsB_pop[i, c(1010:(nperm + 
-                                                                        1009))])))
-  resultsB_pop[i, 6] <- median(na.omit(as.numeric(resultsB_pop[i, c(2010:(nperm + 
-                                                                            2009))])))
-  resultsB_pop[i, 7] <- sd(na.omit(as.numeric(resultsB_pop[i, c(2010:(nperm + 
-                                                                        2009))])))
-  resultsB_pop[i, 8] <- median(na.omit(as.numeric(resultsB_pop[i, c(3010:(nperm + 
-                                                                            3009))])))
-  resultsB_pop[i, 9] <- sd(na.omit(as.numeric(resultsB_pop[i, c(3010:(nperm + 
-                                                                        3009))])))
-}
-
-# Summary of the results:
-# ***********************
-
 for (i in 1:nrow(connect_param)-1) {
   connect_param[i, 2] <- median(as.numeric(connect_param[i, c(8:(nperm + 7))]))
   connect_param[i, 3] <- sd(as.numeric(connect_param[i, c(8:(nperm + 7))]))
@@ -170,6 +151,6 @@ for (i in 1:nrow(connect_param)-1) {
 
 # Output of the results:
 # **********************
-connect_file_name <- paste("Results_Connectivity_param", design, 
-                           paste(".txt", sep = ""), sep = "_")
+connect_file_name <- paste("Results_Connectivity_param", 
+                           paste(design, ".txt", sep = ""), sep = "_")
 write.table(connect_param, file = connect_file_name, sep = "\t")
