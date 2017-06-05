@@ -16,7 +16,7 @@ rm(list=ls())
 library(vegan)
 library(adespatial)
 library(spdep)
-library(ade4)
+# library(ade4)
 
 source("lmp.R")
 
@@ -29,7 +29,7 @@ MEM_model = "positive"   # Either "positive" or "negative"
 # Sampling design:
 design <- "clustered"    # Either "clustered" or "random"
 
-nperm <- 1000
+nperm <- 1
 
 # Structuring Intensity (low or high):
 a <- 0.35   # 0.35 or 0.55
@@ -976,7 +976,7 @@ if (anova.cca(rda(y_sub, Y.DB.PCNM$best$MEM), permutations = 9999)$Pr[1] <= 0.05
 # Summary of the results:
 # ***********************
 
-for (i in 1:nrow(resultsB_pop)-1) {
+for (i in 1:(nrow(resultsB_pop)-1)) {
   resultsB_pop[i, 3] <- length(which(resultsB_pop[i, c(10:(nperm + 9))] 
                                      <= 0.05)) / nperm
   resultsB_pop[i, 4] <- median(na.omit(as.numeric(resultsB_pop[i, c(1010:(nperm + 
@@ -1049,7 +1049,7 @@ for (i in 1:nperm) {
   # *****************************************
   f1 <- function (D, dmax)    {1-(D/dmax)}        # Linear function
   f2 <- function (D, dmax, y) {1-(D/dmax)^y}      # Concave-down function
-  f3 <- function (D, y)       {1/(D/dmax)^y}      # Concave-up function
+  f3 <- function (D, dmax, y) {1/(D/dmax)^y}      # Concave-up function
   f4 <- function (D, t)       {1-(D/(4*t))^2}     # PCNM criterion
   
   max.del <- max(unlist(nbdists(Y.del, as.matrix(C)))) 
@@ -1711,7 +1711,7 @@ for (i in 1:nperm) {
 # Median and standard deviation of the deltaR2:
 # *********************************************
 
-for (i in 1:nrow(resultsM_pop)-1) {
+for (i in 1:(nrow(resultsM_pop)-1)) {
   resultsM_pop[i, 3] <- length(which(resultsM_pop[i, c(10:(nperm + 9))] 
                                      <= 0.05)) / nperm
   resultsM_pop[i, 4] <- median(na.omit(as.numeric(resultsM_pop[i, c(1010:(nperm + 
@@ -1839,7 +1839,7 @@ Y.listDB <- lapply(thresh, dnearneigh, x = as.matrix(C), d1 = 0)
 # *****************************************
 f1 <- function (D, dmax)    {1-(D/dmax)}        # Linear function
 f2 <- function (D, dmax, y) {1-(D/dmax)^y}      # Concave-down function
-f3 <- function (D, y)       {1/(D/dmax)^y}           # Concave-up function
+f3 <- function (D, dmax, y)       {1/(D/dmax)^y}           # Concave-up function
 f4 <- function (D, t)       {1-(D/(4*t))^2}     # PCNM criterion
 
 max.del <- max(unlist(nbdists(Y.del, as.matrix(C)))) 
@@ -2545,7 +2545,7 @@ for (i in 1:nperm) {
 # Median and standard deviation of the deltaR2:
 # *********************************************
 
-for (i in 1:nrow(resultsB_sub)-1) {
+for (i in 1:(nrow(resultsB_sub)-1)) {
   resultsB_sub[i, 3] <- length(which(resultsB_sub[i, c(10:(nperm + 9))] 
                                      <= 0.05)) / nperm
   resultsB_sub[i, 4] <- median(na.omit(as.numeric(resultsB_sub[i, c(1010:(nperm + 
@@ -3224,7 +3224,7 @@ for (i in 1:nperm) {
 # Median and standard deviation of the deltaR2:
 # *********************************************
 
-for (i in 1:nrow(resultsM_sub)-1) {
+for (i in 1:(nrow(resultsM_sub)-1)) {
   resultsM_sub[i, 3] <- length(which(resultsM_sub[i, c(10:(nperm + 9))] 
                                      <= 0.05)) / nperm
   resultsM_sub[i, 4] <- median(na.omit(as.numeric(resultsM_sub[i, c(1010:(nperm + 
