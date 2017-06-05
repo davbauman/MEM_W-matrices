@@ -29,6 +29,7 @@ MEM_model = "positive"   # Either "positive" or "negative"
 # Sampling design:
 design <- "clustered"    # Either "clustered" or "random"
 
+nperm <- 1000
 
 # Structuring Intensity (low or high):
 a <- 0.35   # 0.35 or 0.55
@@ -204,32 +205,23 @@ for (i in 1:nperm) {
   if (design == "clustered") {
     C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
     set.seed(i)
-    x1 <- runif(39, min = 0.2, max = 14)
+    x1 <- runif(39, min = 2, max = 14)
     y1 <- runif(39, min = 17, max = 25)
     x2 <- runif(39, min = 19, max = 34)
     y2 <- runif(39, min = 15, max = 25)
     x3 <- runif(39, min = 30, max = 50)
     y3 <- runif(39, min = 1, max = 10)
-#    x1 <- runif(39, min = 0.04, max = 0.28)
-#    y1 <- runif(39, min = 0.34, max = 0.5)
-#    x2 <- runif(39, min = 0.38, max = 0.68)
-#    y2 <- runif(39, min = 0.3, max = 0.5)
-#    x3 <- runif(39, min = 0.6, max = 1)
-#    y3 <- runif(39, min = 0.02, max = 0.2)
     
-    C[,1] <- rbind(x1, x2, x3)
-    C[,2] <- rbind(y1, y2, y3)
-    
-    xy.d1 <- dist(C)
+    C[, 1] <- rbind(x1, x2, x3)
+    C[, 2] <- rbind(y1, y2, y3)
     
   } else {          # design = "random"
     
     C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
     set.seed(i)
-    C[,1] <- runif(117, min = 1, max = 50)
-    C[,2] <- runif(117, min = 1, max = 25) 
+    C[, 1] <- runif(117, min = 1, max = 50)
+    C[, 2] <- runif(117, min = 1, max = 25) 
     
-    xy.d1 <- dist(C)
   }
   
   # Attribute each sampled point to one of the grid cells:
@@ -275,6 +267,7 @@ while (control != nrow(C)) {
 }
 # We rearange 'C' so that all sampled point are in different grid cells ('sort'):
 C <- xy[sort, ]
+xy.d1 <- dist(C)
 C.list[[i]] <- C
 
 # We keep the lines of MEM that correspond to the sampled cells ('tri'):
@@ -1017,6 +1010,7 @@ for (i in 1:nperm) {
   # Sampling scheme:
   # ****************
   C <- C.list[[i]]
+  xy.d1 <- dist(C)
   
   # We keep the lines of MEM that correspond to the sampled cells ('tri'):
   # **********************************************************************
@@ -1055,7 +1049,7 @@ for (i in 1:nperm) {
   # *****************************************
   f1 <- function (D, dmax)    {1-(D/dmax)}        # Linear function
   f2 <- function (D, dmax, y) {1-(D/dmax)^y}      # Concave-down function
-  f3 <- function (D, y)       {1/(D/dmax)^y)}           # Concave-up function
+  f3 <- function (D, y)       {1/(D/dmax)^y}      # Concave-up function
   f4 <- function (D, t)       {1-(D/(4*t))^2}     # PCNM criterion
   
   max.del <- max(unlist(nbdists(Y.del, as.matrix(C)))) 
@@ -1758,23 +1752,15 @@ set.seed(1)
 
 if (design == "clustered") {
   C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  x1 <- runif(39, min = 0.2, max = 14)
+  x1 <- runif(39, min = 2, max = 14)
   y1 <- runif(39, min = 17, max = 25)
   x2 <- runif(39, min = 19, max = 34)
   y2 <- runif(39, min = 15, max = 25)
   x3 <- runif(39, min = 30, max = 50)
   y3 <- runif(39, min = 1, max = 10)
-  #    x1 <- runif(39, min = 0.04, max = 0.28)
-  #    y1 <- runif(39, min = 0.34, max = 0.5)
-  #    x2 <- runif(39, min = 0.38, max = 0.68)
-  #    y2 <- runif(39, min = 0.3, max = 0.5)
-  #    x3 <- runif(39, min = 0.6, max = 1)
-  #    y3 <- runif(39, min = 0.02, max = 0.2)
   
   C[,1] <- rbind(x1, x2, x3)
   C[,2] <- rbind(y1, y2, y3)
-  
-  xy.d1 <- dist(C)
   
 } else {          # design = "random"
   
@@ -1782,7 +1768,6 @@ if (design == "clustered") {
   C[,1] <- runif(117, min = 1, max = 50)
   C[,2] <- runif(117, min = 1, max = 25) 
   
-  xy.d1 <- dist(C)
 }
 
 # Attribute each sampled point to one of the grid cells:
@@ -1825,6 +1810,7 @@ while (control != nrow(C)) {
 }
 # We rearange 'C' so that all sampled point are in different grid cells ('sort'):
 C <- xy[sort, ]
+xy.d1 <- dist(C)
 
 # We keep the lines of MEM that correspond to the sampled cells ('tri'):
 # **********************************************************************
