@@ -29,7 +29,6 @@ MEM_model = "positive"   # Either "positive" or "negative"
 # Sampling design:
 design <- "clustered"    # Either "clustered" or "random"
 
-nperm <- 3
 
 # Structuring Intensity (low or high):
 a <- 0.35   # 0.35 or 0.55
@@ -330,7 +329,7 @@ max.gab <- max(unlist(nbdists(Y.gab, as.matrix(C))))
 max.rel <- max(unlist(nbdists(Y.rel, as.matrix(C)))) 
 max.mst <- max(unlist(nbdists(Y.mst, as.matrix(C))))
 
-nbdist <- lapply(Y.list10dnn, coords = as.matrix(C), nbdists)
+nbdist <- lapply(Y.listDB, coords = as.matrix(C), nbdists)
 unlist <- lapply(nbdist, unlist)
 max.DB.list <- lapply(unlist, max)
 
@@ -1064,7 +1063,7 @@ for (i in 1:nperm) {
   max.rel <- max(unlist(nbdists(Y.rel, as.matrix(C)))) 
   max.mst <- max(unlist(nbdists(Y.mst, as.matrix(C))))
   
-  nbdist <- lapply(Y.list10dnn, coords = as.matrix(C), nbdists)
+  nbdist <- lapply(Y.listDB, coords = as.matrix(C), nbdists)
   unlist <- lapply(nbdist, unlist)
   max.DB.list <- lapply(unlist, max)
   
@@ -1862,7 +1861,7 @@ max.gab <- max(unlist(nbdists(Y.gab, as.matrix(C))))
 max.rel <- max(unlist(nbdists(Y.rel, as.matrix(C)))) 
 max.mst <- max(unlist(nbdists(Y.mst, as.matrix(C))))
 
-nbdist <- lapply(Y.list10dnn, coords = as.matrix(C), nbdists)
+nbdist <- lapply(Y.listDB, coords = as.matrix(C), nbdists)
 unlist <- lapply(nbdist, unlist)
 max.DB.list <- lapply(unlist, max)
 
