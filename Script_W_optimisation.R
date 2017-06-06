@@ -249,8 +249,10 @@ for (i in 1:nperm) {
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
   # **************************************************
-
-   memsel <- MEM.modsel(y_sub, C, autocor = MEM_model, style = style)
+   candidates <- listw.candidates(C, style = style)
+   length(candidates$listW)
+  
+   memsel <- MEM.modsel(y_sub, C, candidates, autocor = MEM_model, style = style)
    if (class(memsel) != "NULL") {
       resultsB_pop[1, 9+i] <- memsel$pval
       resultsB_pop[1, 1009+i] <- memsel$R2adj - R2_sub

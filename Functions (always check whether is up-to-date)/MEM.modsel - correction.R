@@ -20,7 +20,6 @@
 
 # - style: A COMPLETER
 
-
 # - PCNM: whether a distance-based MEM based on the PCNM criterion (Dray et al. 2006) 
 # should be computed and tested.
 # - del, gab, rel, mst: Connectivity matrices to be tested (Delaunay triangulation, 
@@ -52,28 +51,35 @@
 # the function returns a list of two lists (MEM.pos and MEM.neg), each one containing 
 # the same information as described above. 
 
-MEM.modsel <- function(x, coord, autocor = c("positive", "negative", "all"), 
-                       style = "W", PCNM = TRUE, del = TRUE, gab = TRUE, rel = TRUE, 
-                       mst = TRUE, weightfun = TRUE, flin = TRUE, fconcdown = TRUE, 
-                       fconcup = TRUE, ymax = 10, alpha_thresh = 0.05)
-{
 
-   library(vegan)
-   library(adespatial)
-   library(spdep)
+
+# Il faut rajouter binary dans les arguments !
+# Et il faut aussi en tenir compte dans le calcul du nombre de tests effectués !
+
+# Pour les listes dans la liste (f2 et f3), la valeur du 'y' est le nom (names) de 
+# l'élément liste (v. listw.candidate)
+
+MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all"), 
+                       alpha_thresh = 0.05)
+{
+  
+   library(vegan)       # Eliminer quand sera dans le package
+   library(adespatial)  # Eliminer quand sera dans le package
 
    x <- as.data.frame(x)
-   if (any(is.na(x)) | any(is.na(coord))) 
-      stop("NA entries in x or coord")
-   if (nrow(x) != nrow(coord)) 
-      stop("different number of rows")
-
-   options(warn = 2)
+   if (any(is.na(x)) | any(is.na(coord))) stop("NA entries in x or coord")
+   if (nrow(x) != nrow(coord)) stop("different number of rows")
 
    # **********************************************************************************
-   MEM.test <- function(a = x, b, c = autocor, d = nbtest, alpha = alpha_thresh)
+   # The MEM.test function tests the significance of a W matrix while taking into
+   # consideration the total number of W matrices tested in MEM.modsel. This total
+   # number of tests is used to apply a correction to the p-value in order not to
+   # inflate the type I error rate. If the tested W matrix is significant, a model
+   # selection is performed using Blanchet et al.'s forward selection with two stopping 
+   # criteria.
+   MEM.test <- function (a = x, b, c = autocor, d = nbtest, alpha = alpha_thresh)
    {
-      pval <- anova.cca(rda(a, b))$Pr[1]
+      pval <- anova.cca(rda(a, b), permutations = 10000)$Pr[1]
       pval <- 1-(1-pval)^d                   # Sidak correction (nb of MEM model tested) 
       if (c == "all") pval <- 1-(1-pval)^2   # Sidak correction for autocor = "all" 
       if (pval <= alpha) {  
@@ -92,341 +98,155 @@ MEM.modsel <- function(x, coord, autocor = c("positive", "negative", "all"),
    # **********************************************************************************
 
    # **********************************************************************************
-   test.W.R2 <- function (Y, nb, xy, MEM.autocor = c("positive", "negative"), 
-                          f = NULL, ...) 
+   # Function aiming at choosing the weighting function parameter that maximises the 
+   # R2adj. The function returns 1) the complete W matrix corresponding to the best 
+   # value and 2) the index of the selected parameter value (e.g., 'y' varies from
+   # 5 to 9 and y = 6 is selected, then the function returns y = 2, that is, the index).
+   chooseparam <- function (x = x, lw) 
    {
-      mycall <- pairlist(...)   
-      res <- list()       # List of the MEM var. of each W matrix tested in test.W.R2()
-      MEM.autocor <- match.arg(MEM.autocor)   
-
-      nbdist <- nbdists(nb, as.matrix(xy))
-      param <- expand.grid(as.list(mycall))
-      m1 <- match(names(param), names(formals(f)))
-      for (i in 1:nrow(param)) {
-         formals(f)[m1] <- unclass(param[i, ])
-         res[[i]] <- scores.listw(nb2listw(nb, style = style, 
-            glist = lapply(nbdist, f), zero.policy = TRUE), MEM.autocor = MEM.autocor)
-      }
-
-      res2 <- lapply(res, function(z) RsquareAdj(rda(Y, z))$adj.r.squared)
-      thebest <- which.max(res2)
-      return(list(param = param[thebest, ], best = list(MEM = res[[thebest]])))
-   }                                                 # End of the test.W.R2() function
+     listw <- vector("list", length(lw))
+     listR2 <- vector("numeric", length(lw))
+     for (i in 1:length(listw)) {
+       listw[[i]] <- scores.listw(lw[[i]], MEM.autocor = cor[h])
+       listR2[i] <- RsquareAdj(rda(x, listw[[i]]))$adj.r.squared
+     }
+     best <- which.max(listR2)
+     list(W = listw[[best]], y_index = best)
+   }                                                # End of the chooseparam() function
    # **********************************************************************************
-
+   
    autocor <- match.arg(autocor) 
-
-   if (weightfun == TRUE) {
-      f1 <- function (D, dmax)    { 1-(D/dmax) }       # Linear function
-      f2 <- function(D, dmax, y)  { 1 - (D/dmax)^y }   # Concave-down function
-      f3 <- function (D, y)       { 1/(D^y) }          # Concave-up function
-   }
-
-   xy.d1 <- dist(coord)
 
    # Since the loop is entered only once if autocor = "positive" or "negative" 
    # but twice if autocor = "all" (once for the positive and once for the negative 
    # MEM models), we begin by setting up the loop.
 
-   lenlist <- c()   # Will help with the result output  
    if (autocor != "all") { 
-     k <- 1   # number of times the loop will run
+     k <- 1   # number of times the for loop will run
      if (autocor == "positive") { 
        cor <- c("positive", "negative") 
      }  else cor <- c("negative", "positive") 
-   } else k <- 2 ; cor <- c("positive", "negative")
+   } else {
+     k <- 2
+     cor <- c("positive", "negative")
+   }
 
    # A multitest p-value correction is needed for controling the type-I error rate. 
    # We define the total nb of tests:
-   nbtest <- length(which(c(del, gab, rel, mst) == TRUE))
-   if (weightfun == TRUE) {
-     nbtest <- nbtest * length(which(c(flin, fconcdown, fconcup) == TRUE))
-   }
-   if (PCNM == TRUE) nbtest <- nbtest + 1   
+   nbtest <- length(candidates)
 
    for (h in 1:k) {
 
       # For model comparison and selection
-      results <- as.data.frame(matrix(nrow = 17, ncol = 6))
-      colnames(results) <- c("Matrix B", "Matrix A", "pval_sidak", "R2adj", "NbMEM", 
-                             "y")     
-      results[, 1] <- c("DBMEM", rep(c("Delaunay triangulation", "Gabriel's graph", 
-                                       "relative neigh.", "minimum spanning tree"), 
-                                     each = 4))
-      results[, 2] <- c("PCNM criterion", rep(c("binary", "linear", "concave-down", 
-                                                "concave-up"), times = 4))
-
+      results <- as.data.frame(matrix(nrow = nbtest, ncol = 4))
+      colnames(results) <- c("pval_sidak", "R2adj", "NbMEM", "y_index")     
       # List of the MEM.select matrices
-      listMEM <- vector("list", nrow(results))
+      listMEM <- vector("list", nbtest)
       # and corresponding R2
-      listR2 <- vector("list", nrow(results))
-      # List of 'MEM.modsel' results
-      listtest <- vector("list", nrow(results))
+      listR2 <- vector("list", nbtest)
+      # List of 'MEM.test' results
+      listtest <- vector("list", nbtest)
       # List of global W matrices
-      listW <- vector("list", nrow(results))
-
-      if (PCNM == TRUE) {
-         f <- function (D, t) { 1-(D/(4*t))^2 }           # PCNM criterion
-         lowlim <- give.thresh(xy.d1)
-         matB <- dnearneigh(lowlim, x = as.matrix(coord), d1 = 0)
-         W <- scores.listw(nb2listw(matB, style = style, 
-                                    glist = lapply(nbdists(matB, as.matrix(coord)), f, 
-                                                   t = lowlim)), MEM.autocor = cor[h])
-         listtest[[1]] <- MEM.test(x, W)
-         listW[[1]] <- W
-      } 
-      if (del == TRUE) {
-         Y.del <- tri2nb(coord)
-         W <- scores.listw(nb2listw(Y.del, style = style), MEM.autocor = cor[h])
-         listtest[[2]] <- MEM.test(x, W)
-         listW[[2]] <- W
-         if (weightfun == TRUE) {
-            max.del <- max(unlist(nbdists(Y.del, as.matrix(coord))))
-            if (flin == TRUE) {
-               class <- class(try(W <- scores.listw(nb2listw(Y.del, style = style, 
-                  glist = lapply(nbdists(Y.del, as.matrix(coord)), f1, dmax = max.del)), 
-                  MEM.autocor = cor[h]), TRUE))
-               if (class[1] != "try-error") {
-                  listtest[[3]] <- MEM.test(x, W)
-                  listW[[3]] <- W
-               }  
-            } 
-            if (fconcdown == TRUE) {      
-               class <- class(try(W <- test.W.R2(Y = x, nb = Y.del, 
-                                                 xy = as.matrix(coord), 
-                                                 MEM.autocor = cor[h], f = f2, 
-                                                 y = 2:ymax, dmax = max.del), TRUE))
-               if (class[1] != "try-error") {
-                  listtest[[4]] <- MEM.test(x, W$best$MEM)
-                  listW[[4]] <- W
-               }
-            }
-            if (fconcup == TRUE) {
-               class = "try-error" ; yconcup = ymax
-               while(class == "try-error") {  
-                  class <- class(try(W <- test.W.R2(Y = x, nb = Y.del, 
-                                                    xy = as.matrix(coord), 
-                                                    MEM.autocor = cor[h], f = f3, 
-                                                    y = 1:yconcup), TRUE))
-                  if (class[1] == "try-error") { yconcup <- yconcup - 1
-                  } else {
-                     listtest[[5]] <- MEM.test(x, W$best$MEM)
-                     listW[[5]] <- W
-                  }
-                  if (yconcup == 0) break
-               }
-            }
-         }
-      }
-      if (gab == TRUE) {
-         Y.gab <- graph2nb(gabrielneigh(as.matrix(coord), nnmult = 4), sym = TRUE)
-         W <- scores.listw(nb2listw(Y.gab, style = style), MEM.autocor = cor[h])
-         listtest[[6]] <- MEM.test(x, W)
-         listW[[6]] <- W
-         if (weightfun == TRUE) {
-            max.gab <- max(unlist(nbdists(Y.gab, as.matrix(coord))))
-            if (flin == TRUE) {
-               class <- class(try(W <- scores.listw(nb2listw(Y.gab, style = style, 
-                  glist = lapply(nbdists(Y.gab, as.matrix(coord)), f1, dmax = max.gab)), 
-                  MEM.autocor = cor[h]), TRUE))
-               if (class[1] != "try-error") {
-                  listtest[[7]] <- MEM.test(x, W)  
-                  listW[[7]] <- W
-               }   
-            }
-            if (fconcdown == TRUE) {         
-               class <- class(try(W <- test.W.R2(Y = x, nb = Y.gab, 
-                                                 xy = as.matrix(coord), 
-                                                 MEM.autocor = cor[h], f = f2, 
-                                                 y = 2:ymax, dmax = max.gab), TRUE))
-               if (class[1] != "try-error") {
-                  listtest[[8]] <- MEM.test(x, W$best$MEM)
-                  listW[[8]] <- W
-               }
-            }
-            if (fconcup == TRUE) {
-               class = "try-error" ; yconcup = ymax
-               while(class == "try-error") {    
-                  class <- class(try(W <- test.W.R2(Y = x, nb = Y.gab, 
-                                                    xy = as.matrix(coord), 
-                                                    MEM.autocor = cor[h], f = f3, 
-                                                    y = 1:yconcup), TRUE))
-                  if (class[1] == "try-error") { yconcup <- yconcup - 1
-                  } else {
-                     listtest[[9]] <- MEM.test(x, W$best$MEM)
-                     listW[[9]] <- W
-                  }
-                  if (yconcup == 0) break
-               }
-            }
-         }
-      }
-      if (rel == TRUE) {
-         Y.rel <- graph2nb(relativeneigh(as.matrix(coord), nnmult = 4), sym = TRUE)
-         W <- scores.listw(nb2listw(Y.rel, style = style), MEM.autocor = cor[h])
-         listtest[[10]] <- MEM.test(x, W)
-         listW[[10]] <- W
-         if (weightfun == TRUE) {
-            max.rel <- max(unlist(nbdists(Y.rel, as.matrix(coord)))) 
-            if (flin == TRUE) {
-               class <- class(try(W <- scores.listw(nb2listw(Y.rel, style = style, 
-                  glist = lapply(nbdists(Y.rel, as.matrix(coord)), f1, 
-                                 dmax = max.rel)), MEM.autocor = cor[h]), TRUE))
-               if (class[1] != "try-error") {
-                  listtest[[11]] <- MEM.test(x, W)  
-                  listW[[11]] <- W 
-               }
-            }
-            if (fconcdown == TRUE) {           
-               class <- class(try(W <- test.W.R2(Y = x, nb = Y.rel, 
-                                                 xy = as.matrix(coord), 
-                                                 MEM.autocor = cor[h], f = f2, 
-                                                 y = 2:ymax, dmax = max.rel), TRUE))
-               if (class[1] != "try-error") {
-                  listtest[[12]] <- MEM.test(x, W$best$MEM)
-                  listW[[12]] <- W
-               }
-            }
-            if (fconcup == TRUE) { 
-               class = "try-error" ; yconcup = ymax
-               while(class == "try-error") {  
-                  class <- class(try(W <- test.W.R2(Y = x, nb = Y.rel, 
-                                                    xy = as.matrix(coord), 
-                                                    MEM.autocor = cor[h], f = f3,
-                                                    y = 1:yconcup), TRUE))
-                  if (class[1] == "try-error") { yconcup <- yconcup - 1
-                  } else {
-                     listtest[[13]] <- MEM.test(x, W$best$MEM)
-                     listW[[13]] <- W 
-                  } 
-                  if (yconcup == 0) break                
-               }
-            }
-         }
-      }
-      if (mst == TRUE) {
-         Y.mst <- mst.nb(xy.d1)
-         W <- scores.listw(nb2listw(Y.mst, style = style), MEM.autocor = cor[h])
-         listtest[[14]] <- MEM.test(x, W)
-         listW[[14]] <- W         
-         if (weightfun == TRUE) {
-            max.mst <- max(unlist(nbdists(Y.mst, as.matrix(coord)))) 
-            if (flin == TRUE) {
-               class <- class(try(W <- scores.listw(nb2listw(Y.mst, style = style, 
-                  glist = lapply(nbdists(Y.mst, as.matrix(coord)), f1, 
-                                 dmax = max.mst)), MEM.autocor = cor[h]), TRUE))
-               if (class[1] != "try-error") {
-                  listtest[[15]] <- MEM.test(x, W)
-                  listW[[15]] <- W
-               }
-            }
-            if (fconcdown == TRUE) {         
-               class <- class(try(W <- test.W.R2(Y = x, nb = Y.mst, 
-                                                 xy = as.matrix(coord), 
-                                                 MEM.autocor = cor[h], f = f2, 
-                                                 y = 2:ymax, dmax = max.mst), TRUE))
-               if (class[1] != "try-error") {
-                  listtest[[16]] <- MEM.test(x, W$best$MEM)
-                  listW[[16]] <- W
-               }
-            }  
-            if (fconcup == TRUE) {    
-               class = "try-error" ; yconcup = ymax
-               while(class == "try-error") {       
-                  class <- class(try(W <- test.W.R2(Y = x, nb = Y.mst, 
-                                                    xy = as.matrix(coord), 
-                                                    MEM.autocor = cor[h], f = f3, 
-                                                    y = 1:yconcup), TRUE))
-                  if (class[1] == "try-error") { yconcup <- yconcup - 1
-                  } else {
-                     listtest[[17]] <- MEM.test(x, W$best$MEM)
-                     listW[[17]] <- W 
-                  } 
-                  if (yconcup == 0) break                  
-               }  
-            }
-         }
+      listW <- vector("list", nbtest)
+      # Vector of best parameter values (when severall compared):
+      param <- rep("NA", nbtest)
+      
+      for (q in 1:nbtest) {
+        # If length(candidates[[q]]) > 3, we have a list in the candidates list, 
+        # meaning that severall W matrices were build on the basis of a single set of
+        # connectivity and weighting matrices. This occurs when different parameters of
+        # a weighting functions are tested. If this case, the length of candidates[[q]]
+        # corresponds to the number of parameters tested. One parameter value has to be 
+        # chosen based on the global R2adj: the corresponding W matrix is then tested 
+        # using MEM.test(). 
+        # If length == 3, we only have a listw object in candidates[[q]] and the length
+        # of 3 corresponds to "style", "neighbours", and "weights". We only have one 
+        # weighted list that can be directly tested.
+        if (length(candidates[[q]]) == 3) {
+          W <- scores.listw(candidates[[q]], MEM.autocor = cor[h])
+          listW[[q]] <- W
+          listtest[[q]] <- MEM.test(x, W)
+        } else {
+          bestparam <- chooseparam(x = x, lw = candidates[[q]])
+          listW[[q]] <- bestparam$W
+          param[q] <- bestparam$y_index
+          listtest[[q]] <- MEM.test(x, W)
+        }
       }
       # Save the results in order to compare them and choose the best model:
-      for(i in 1:nrow(results)) {
-         if (is.list(listtest[[i]]) == TRUE) {
-            results[i, 3] <- listtest[[i]]$pval
-            results[i, 4] <- listtest[[i]]$R2adj
-            results[i, 5] <- listtest[[i]]$NbVar
-            if (length(listW[[i]]) == 2) results[i, 6] <- listW[[i]]$param[1]
-            listMEM[[i]] <- listtest[[i]]$MEM.select
-            listR2[[i]] <- listtest[[i]]$AdjR2Cum
-         }
+      for (i in 1:nbtest) {
+        if (is.list(listtest[[i]]) == TRUE) {
+          results[i, 1] <- listtest[[i]]$pval
+          results[i, 2] <- listtest[[i]]$R2adj
+          results[i, 3] <- listtest[[i]]$NbVar
+          if (param[i] != "NA") results[i, 4] <- param[i]
+          listMEM[[i]] <- listtest[[i]]$MEM.select
+          listR2[[i]] <- listtest[[i]]$AdjR2Cum
+        }
       }
-      # Selection of the best model:
-      if (length(which(results[, 3] <= alpha_thresh)) > 0) {
-         best <- which.max(results[, 4])
-         if (autocor != "all") {
-            lenlist <- c(lenlist, cor[h])
-            L <- list(MEM.vec = listMEM[[best]], MEM.AdjR2Cum = listR2[[best]], 
-                      Connectivity_Matrix = results[best, 1], 
-                      Weighting_fun = results[best, 2], pval = results[best, 3], 
-                      R2adj = results[best, 4], NbVar = results[best, 5], 
-                      y = results[best, 6])
-         } else {
-            lenlist <- c(lenlist, cor[h])
-            if (h == 1) {
-               L1 <- list(MEM.vec = listMEM[[best]], MEM.AdjR2Cum = listR2[[best]], 
-                          Connectivity_Matrix = results[best, 1],
-                          Weighting_fun = results[best, 2], pval = results[best, 3], 
-                          R2adj = results[best, 4], NbVar = results[best, 5], 
-                          y = results[best, 6])
-               
-            } else {
-               L2 <- list(MEM.vec = listMEM[[best]], MEM.AdjR2Cum = listR2[[best]], 
-                          Connectivity_Matrix = results[best, 1],
-                          Weighting_fun = results[best, 2], pval = results[best, 3], 
-                          R2adj = results[best, 4], NbVar = results[best, 5], 
-                          y = results[best, 6])
-            }
-         }
+      # Selection of the best W matrix (and best model within it):
+      if (length(which(results[, 1] <= alpha_thresh)) > 0) {
+        best <- which.max(results[, 2])
+        lenlist <- c()   # Will help with the result output  
+        if (autocor != "all") {
+          lenlist <- c(lenlist, cor[h])
+          L <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 
+                    MEM.AdjR2Cum = listR2[[best]], name = names(candidates)[best], 
+                    param_index = results[best, 4], pval = results[best, 1], 
+                    R2adj = results[best, 2], NbVar = results[best, 3])
+        } else {
+          lenlist <- c(lenlist, cor[h])
+          if (h == 1) {
+            L1 <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 
+                       MEM.AdjR2Cum = listR2[[best]], name = names(candidates)[best], 
+                       param_index = results[best, 4], pval = results[best, 1], 
+                       R2adj = results[best, 2], NbVar = results[best, 3])
+          } else {
+            L2 <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 
+                       MEM.AdjR2Cum = listR2[[best]], name = names(candidates)[best], 
+                       param_index = results[best, 4], pval = results[best, 1], 
+                       R2adj = results[best, 2], NbVar = results[best, 3])
+          }
+        }
       }
-   }    # End of the for loop
+    }    # End of the for loop
 
-   options(warn = 1)
-
+   # Output of the MEM.modsel function:
    if (length(lenlist) == 2) {
-      cat("\n", "\n", "*****************************************************", "\n",
-          "*****************************************************", "\n",
-         "Significant positive (p-value = ", L1$pval, ", R2adj = ", L1$R2adj, 
-         ") and negative (p-value = ", L2$pval, ", R2adj = ", L2$R2adj, ")", "\n", 
-         "MEM models were detected and selected.", "\n", 
-         "The best positive and negative models were built using ", 
-         L1$Connectivity_Matrix, " and ", L2$Connectivity_Matrix, "\n", 
-         "(connectivity matrix), and ", L1$Weighting_fun, " and ", L2$Weighting_fun,
-         " weighting functions, respectively.", "\n",
+     cat("\n", "\n", "*****************************************************", "\n",
          "*****************************************************", "\n",
-         "The output of the function is a list of two lists (MEM.pos and MEM.neg).", 
-         "\n", "Within each list, the MEM variables are available in $MEM.vec.", 
-         "\n", "\n", sep = "")
+         "A best positive (corrected p-value = ", round(L1$pval, 5), ", R2adj of the", 
+         "\n", "selected MEM variables = ", round(L1$R2adj, 3), 
+         ") and best negative (corrected p-value = ", round(L2$pval, 5), ",", "\n", 
+         "R2adj of the selected MEM variables = ", round(L2$R2adj, 3), ")", 
+         "MEM models were selected.", "\n", 
+         "The corresponding spatial weighting W matrices are ", 
+         L1$name, " (parameter_index = ", L1$param_index, ")", "\n", " and ", 
+         L2$name, " (parameter_index = ", L2$param_index, ")", ", respectively.", "\n",
+         "*****************************************************", "\n",
+         "*****************************************************", "\n",
+         "The output of the function is a list of two lists (MEM.pos and MEM.neg).",
+         sep = "")
      list(MEM.pos = L1, MEM.neg = L2)
-   } else if (length(lenlist) == 1) {
-             if (autocor == "all") { if (lenlist == "positive") L <- L1 else L <- L2 }
-             cat("\n", "\n", "*****************************************************", 
-                 "\n", "*****************************************************", "\n",
-                 "A significant ", lenlist, " MEM model was selected (p-value = ", 
-                 L$pval, ", R2adj = ", L$R2adj, ").", "\n", 
-                 "The best model was built using ", L$Connectivity_Matrix, 
-                 " (connectivity matrix) and a ", L$Weighting_fun, 
-                 " weighting function.", "\n",
-                 "*****************************************************", "\n",
-                 "The output of the function is a list containing the MEM", "\n", 
-                 "variables ($MEM.vec) and other characteristics and results of", "\n", 
-                 "the model ($pval, $R2adj etc.)", "\n", "\n", sep = "")
-             list(MEM.vec = L$MEM.vec, MEM.AdjR2Cum = L$MEM.AdjR2Cum, 
-                  Connectivity_Matrix = L$Connectivity_Matrix, 
-                  Weighting_fun = L$Weighting_fun, pval = L$pval, R2adj = L$R2adj, 
-                  NbVar = L$NbVar, y = L$y)
-          } else cat("\n", "\n", 
-                     "*****************************************************", "\n",
-                     "*****************************************************", "\n",
-                     "No significant spatial structure was detected in the data.", "\n",
-                     "\n", sep = "")   
+   } else 
+     if (length(lenlist) == 1) { 
+       if (autocor == "all") if (lenlist == "positive") L <- L1 else L <- L2
+       cat("\n", "\n", "*****************************************************", 
+           "\n", "*****************************************************", "\n",
+           "A best ", lenlist, " MEM model was selected (corrected p-value = ", 
+           round(L$pval, 5), ", R2adj of the selected", "\n",  "MEM variables = ", 
+           round(L$R2adj, 3), ").", "\n", 
+           "The corresponding spatial weighting W matrix is ", 
+           L$name, "\n", "(parameter_index = ", L$param_index, ").", "\n",
+           "*****************************************************", "\n",
+           "*****************************************************", "\n", sep = "")
+       list(MEM.all = L$MEM.all, MEM.select = L$MEM.select, 
+            MEM.AdjR2Cum = L$MEM.AdjR2Cum, name = L$name, param_index = L$param_index,
+            pval = L$pval, R2adj = L$R2adj, NbVar = L$NbVar)
+     } else cat("\n", "\n", "*****************************************************", 
+                "\n", "*****************************************************", "\n",
+                "No significant spatial structure was detected in the data.", "\n",
+                "\n", sep = "")   
 }
 
 # Written by:

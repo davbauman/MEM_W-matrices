@@ -9,6 +9,10 @@
 # Pour les listes dans la liste (f2 et f3), la valeur du 'y' est le nom (names) de 
 # l'élément liste (v. listw.candidates)
 
+# Problème est que cette list-output doit ressembler à n'importe quelle liste que
+# l'utilisateur voudrait créer lui-même pour que MEM.modsel puisse traiter la liste
+# lui était fournie de manière égale.
+
 # *********************************************************************************** #
 listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = TRUE, 
                              mst = TRUE, PCNM = TRUE,  DB = TRUE, thresh = "?", 
@@ -35,6 +39,7 @@ listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = 
   
   # List of the W matrix candidates
   listwcand <- vector("list", nbw)
+  listwfeatures <- vector("list", nbw)
   count <- 0
 
   # Construction of the list of W matrix candidates: 
@@ -217,7 +222,7 @@ listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = 
       }
     }
   }
-  list(listW = listwcand)
+  return(listwcand)
 } # End of the lisw.candidates function
 # *********************************************************************************** #
   
