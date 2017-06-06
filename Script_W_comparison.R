@@ -29,10 +29,10 @@ MEM_model = "positive"   # Either "positive" or "negative"
 # Sampling design:
 design <- "clustered"    # Either "clustered" or "random"
 
-nperm <- 1
+nperm <- 1000
 
 # Structuring Intensity (low or high):
-a <- 0.35   # 0.35 or 0.55
+a <- 0.55   # 0.35 or 0.55
 if (a < 0.5) intensity = "Weak" else intensity = "Strong"
 
 style <- "B"             # Either "B" or "W"
