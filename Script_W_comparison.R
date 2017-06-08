@@ -8,7 +8,7 @@
 ###################### et de l'échantillon réel. ##############################
 # *************************************************************************** #
 
-rm(list=ls())
+# rm(list=ls())
 
 # Usefull packages and functions:
 # *******************************
@@ -19,6 +19,7 @@ library(spdep)
 # library(ade4)
 
 source("lmp.R")
+source("test.W.R2.R") 
 
 # Definition of the simulation parameters:
 # ****************************************
@@ -36,10 +37,6 @@ a <- 0.55   # 0.35 or 0.55
 if (a < 0.5) intensity = "Weak" else intensity = "Strong"
 
 style <- "B"             # Either "B" or "W"
-
-if (style == "B") { 
-    source("test.W.R2_styleB.R") 
-} else source("test.W.R2_styleW.R") 
 
 # Construction of the results matrices :
 # **************************************
@@ -123,8 +120,8 @@ xy <- expand.grid(x = seq(1, 150, 1), y = seq(1, 75, 1))
 # plot(xy, cex = 1)
 
 nb <- cell2nb(nrow = 75, ncol = 150, "queen")
-nb2 <- nb2listw(nb)
-MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
+nb2 <- nb2listw(nb, style = style)
+MEM <- scores.listw(nb2, style = style, MEM.autocor = MEM_model)
 
 # xy_attr <- attr(nb, "region.id")
 # XY <- matrix(as.integer(unlist(strsplit(xy_attr, ":"))), ncol = 2, byrow = TRUE)
@@ -333,75 +330,77 @@ max.DB.list <- lapply(unlist, max)
 # ****************************
 # del:
 # ****
-Y.del.MEM <- test.W.R2(nb = Y.del, xy = C, MEM.autocor = MEM_model)
+Y.del.MEM <- test.W.R2(nb = Y.del, xy = C, style = style, MEM.autocor = MEM_model)
 Y.del.MEM.f1 <- test.W.R2(nb = Y.del, xy = C, f = f1, dmax = max.del, 
-                          MEM.autocor = MEM_model)
-Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, MEM.autocor = MEM_model, 
-                          f = f2, dmax = max.del, y = 2:10)
-Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, MEM.autocor = MEM_model, 
-                          f = f3, dmax = max.del, y = 2:10)
+                          style = style, MEM.autocor = MEM_model)
+Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+                          MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 2:5)
+Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+                          MEM.autocor = MEM_model, f = f3, dmax = max.del, y = 1:5)
 # gab:
 # ****
-Y.gab.MEM <- test.W.R2(nb = Y.gab, xy = C, MEM.autocor = MEM_model)
+Y.gab.MEM <- test.W.R2(nb = Y.gab, xy = C, style = style, MEM.autocor = MEM_model)
 Y.gab.MEM.f1 <- test.W.R2(nb = Y.gab, xy = C, f = f1, dmax = max.gab, 
-                          MEM.autocor = MEM_model)
-Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, MEM.autocor = MEM_model, 
-                          f = f2, dmax = max.gab, y = 2:10)
-Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, MEM.autocor = MEM_model, 
-                          f = f3, dmax = max.gab, y = 2:10)
+                          style = style, MEM.autocor = MEM_model)
+Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
+                          MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 2:5)
+Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style,  
+                          MEM.autocor = MEM_model, f = f3, dmax = max.gab, y = 1:5)
 # rel:
 # ****
-Y.rel.MEM <- test.W.R2(nb = Y.rel, xy = C, MEM.autocor = MEM_model)
+Y.rel.MEM <- test.W.R2(nb = Y.rel, xy = C, style = style, MEM.autocor = MEM_model)
 Y.rel.MEM.f1 <- test.W.R2(nb = Y.rel, xy = C, f = f1, dmax = max.rel, 
-                          MEM.autocor = MEM_model)
-Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, MEM.autocor = MEM_model, 
-                          f = f2, dmax = max.rel, y = 2:10)
-Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, MEM.autocor = MEM_model, 
-                          f = f3, dmax = max.rel, y = 2:10)
+                          style = style, MEM.autocor = MEM_model)
+Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
+                          MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 2:5)
+Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
+                          MEM.autocor = MEM_model, f = f3, dmax = max.rel, y = 1:5)
 # mst:
 # ****
-Y.mst.MEM <- test.W.R2(nb = Y.mst, xy = C, MEM.autocor = MEM_model)
+Y.mst.MEM <- test.W.R2(nb = Y.mst, xy = C, style = style, MEM.autocor = MEM_model)
 Y.mst.MEM.f1 <- test.W.R2(nb = Y.mst, xy = C, f = f1, dmax = max.mst, 
-                          MEM.autocor = MEM_model)
-Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.mst, y = 2:10)
-Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.mst, y = 2:10)
+                          style = style, MEM.autocor = MEM_model)
+Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
+                          MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 2:5)
+Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style,  
+                          MEM.autocor = MEM_model, f = f3, dmax = max.mst, y = 1:5)
 # DB:
 # ***
-Y.DB1.MEM <- test.W.R2(nb = Y.listDB[[1]], xy = C, MEM.autocor = MEM_model)
+Y.DB1.MEM <- test.W.R2(nb = Y.listDB[[1]], xy = C, style = style, MEM.autocor = MEM_model)
 Y.DB1.MEM.f1 <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f1, dmax = max.DB.list[[1]], 
-                          MEM.autocor = MEM_model)
+                          style = style, MEM.autocor = MEM_model)
 Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
-                          MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[1]], 
-                          y = 2:10)
+                          style = style, MEM.autocor = MEM_model, f = f2, 
+                          dmax = max.DB.list[[1]], y = 2:5)
 Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
-                          MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[1]],
-                          y = 2:10)
+                          style = style, MEM.autocor = MEM_model, f = f3, 
+                          dmax = max.DB.list[[1]], y = 1:5)
 
-Y.DB2.MEM <- test.W.R2(nb = Y.listDB[[2]], xy = C, MEM.autocor = MEM_model)
+Y.DB2.MEM <- test.W.R2(nb = Y.listDB[[2]], xy = C, style = style, 
+                       MEM.autocor = MEM_model)
 Y.DB2.MEM.f1 <- test.W.R2(nb = Y.listDB[[2]], xy = C, f = f1, dmax = max.DB.list[[2]], 
-                          MEM.autocor = MEM_model)
+                          style = style, MEM.autocor = MEM_model)
 Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
-                          MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[2]], 
-                          y = 2:10)
+                          style = style, MEM.autocor = MEM_model, f = f2, 
+                          dmax = max.DB.list[[2]], y = 2:5)
 Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
-                          MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[2]],
-                          y = 2:10)
+                          style = style, MEM.autocor = MEM_model, f = f3, 
+                          dmax = max.DB.list[[2]], y = 1:5)
 
-Y.DB3.MEM <- test.W.R2(nb = Y.listDB[[3]], xy = C, MEM.autocor = MEM_model)
+Y.DB3.MEM <- test.W.R2(nb = Y.listDB[[3]], xy = C, style = style, 
+                       MEM.autocor = MEM_model)
 Y.DB3.MEM.f1 <- test.W.R2(nb = Y.listDB[[3]], xy = C, f = f1, dmax = max.DB.list[[3]], 
-                          MEM.autocor = MEM_model)
+                          style = style, MEM.autocor = MEM_model)
 Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
-                          MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[3]], 
-                          y = 2:10)
+                          style = style, MEM.autocor = MEM_model, f = f2, 
+                          dmax = max.DB.list[[3]], y = 2:5)
 Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
-                          MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[3]],
-                          y = 2:10)
+                          style = style, MEM.autocor = MEM_model, f = f3, 
+                          dmax = max.DB.list[[3]], y = 1:5)
 
 # DBMEM with PCNM criteria:
 # *************************
-Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, 
+Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = style, 
                        MEM.autocor = MEM_model)
 
 # Significance test and MEM var. selection (fwd.sel with double stopping criterion):
@@ -1068,75 +1067,81 @@ for (i in 1:nperm) {
   # ****************************
   # del:
   # ****
-  Y.del.MEM <- test.W.R2(nb = Y.del, xy = C, MEM.autocor = MEM_model)
+  Y.del.MEM <- test.W.R2(nb = Y.del, xy = C, style = style, MEM.autocor = MEM_model)
   Y.del.MEM.f1 <- test.W.R2(nb = Y.del, xy = C, f = f1, dmax = max.del, 
-                            MEM.autocor = MEM_model)
-  Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.del, y = 2:10)
-  Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.del, y = 2:10)
+                            style = style, MEM.autocor = MEM_model)
+  Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 2:5)
+  Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f3, dmax = max.del, y = 1:5)
   # gab:
   # ****
-  Y.gab.MEM <- test.W.R2(nb = Y.gab, xy = C, MEM.autocor = MEM_model)
+  Y.gab.MEM <- test.W.R2(nb = Y.gab, xy = C, style = style, MEM.autocor = MEM_model)
   Y.gab.MEM.f1 <- test.W.R2(nb = Y.gab, xy = C, f = f1, dmax = max.gab, 
-                            MEM.autocor = MEM_model)
-  Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.gab, y = 2:10)
-  Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.gab, y = 2:10)
+                            style = style, MEM.autocor = MEM_model)
+  Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 2:5)
+  Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style,
+                            MEM.autocor = MEM_model, f = f3, dmax = max.gab, y = 1:5)
   # rel:
   # ****
-  Y.rel.MEM <- test.W.R2(nb = Y.rel, xy = C, MEM.autocor = MEM_model)
+  Y.rel.MEM <- test.W.R2(nb = Y.rel, xy = C, style = style, MEM.autocor = MEM_model)
   Y.rel.MEM.f1 <- test.W.R2(nb = Y.rel, xy = C, f = f1, dmax = max.rel, 
-                            MEM.autocor = MEM_model)
-  Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.rel, y = 2:10)
-  Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.rel, y = 2:10)
+                            style = style, MEM.autocor = MEM_model)
+  Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 2:5)
+  Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f3, dmax = max.rel, y = 1:5)
   # mst:
   # ****
-  Y.mst.MEM <- test.W.R2(nb = Y.mst, xy = C, MEM.autocor = MEM_model)
+  Y.mst.MEM <- test.W.R2(nb = Y.mst, xy = C, style = style, MEM.autocor = MEM_model)
   Y.mst.MEM.f1 <- test.W.R2(nb = Y.mst, xy = C, f = f1, dmax = max.mst, 
-                            MEM.autocor = MEM_model)
-  Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.mst, y = 2:10)
-  Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.mst, y = 2:10)
+                            style = style, MEM.autocor = MEM_model)
+  Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style,  
+                            MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 2:5)
+  Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f3, dmax = max.mst, y = 1:5)
   # DB:
   # ***
-  Y.DB1.MEM <- test.W.R2(nb = Y.listDB[[1]], xy = C, MEM.autocor = MEM_model)
-  Y.DB1.MEM.f1 <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f1, dmax = max.DB.list[[1]], 
+  Y.DB1.MEM <- test.W.R2(nb = Y.listDB[[1]], xy = C, style = style, 
+                         MEM.autocor = MEM_model)
+  Y.DB1.MEM.f1 <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f1, 
+                            dmax = max.DB.list[[1]], style = style, 
                             MEM.autocor = MEM_model)
-  Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
+  Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[1]], 
-                            y = 2:10)
-  Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
+                            y = 2:5)
+  Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[1]],
-                            y = 2:10)
+                            y = 1:5)
   
-  Y.DB2.MEM <- test.W.R2(nb = Y.listDB[[2]], xy = C, MEM.autocor = MEM_model)
-  Y.DB2.MEM.f1 <- test.W.R2(nb = Y.listDB[[2]], xy = C, f = f1, dmax = max.DB.list[[2]], 
+  Y.DB2.MEM <- test.W.R2(nb = Y.listDB[[2]], xy = C, style = style, 
+                         MEM.autocor = MEM_model)
+  Y.DB2.MEM.f1 <- test.W.R2(nb = Y.listDB[[2]], xy = C, f = f1, 
+                            dmax = max.DB.list[[2]], style = style, 
                             MEM.autocor = MEM_model)
-  Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
+  Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[2]], 
-                            y = 2:10)
-  Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
+                            y = 2:5)
+  Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[2]],
-                            y = 2:10)
+                            y = 1:5)
   
-  Y.DB3.MEM <- test.W.R2(nb = Y.listDB[[3]], xy = C, MEM.autocor = MEM_model)
-  Y.DB3.MEM.f1 <- test.W.R2(nb = Y.listDB[[3]], xy = C, f = f1, dmax = max.DB.list[[3]], 
+  Y.DB3.MEM <- test.W.R2(nb = Y.listDB[[3]], xy = C, style = style, 
+                         MEM.autocor = MEM_model)
+  Y.DB3.MEM.f1 <- test.W.R2(nb = Y.listDB[[3]], xy = C, f = f1, 
+                            dmax = max.DB.list[[3]], style = style, 
                             MEM.autocor = MEM_model)
-  Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
+  Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[3]], 
-                            y = 2:10)
-  Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
+                            y = 2:5)
+  Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[3]],
-                            y = 2:10)
+                            y = 1:5)
   
   # DBMEM with PCNM criteria:
   # *************************
-  Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, 
+  Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = style,
                          MEM.autocor = MEM_model)
   
   # Significance test and MEM var. selection (fwd.sel with double stopping criterion):
@@ -1836,7 +1841,7 @@ Y.listDB <- lapply(thresh, dnearneigh, x = as.matrix(C), d1 = 0)
 # *****************************************
 f1 <- function (D, dmax)    {1-(D/dmax)}        # Linear function
 f2 <- function (D, dmax, y) {1-(D/dmax)^y}      # Concave-down function
-f3 <- function (D, dmax, y)       {1/(D/dmax)^y}           # Concave-up function
+f3 <- function (D, dmax, y) {1/(D/dmax)^y}      # Concave-up function
 f4 <- function (D, t)       {1-(D/(4*t))^2}     # PCNM criterion
 
 max.del <- max(unlist(nbdists(Y.del, as.matrix(C)))) 
@@ -1852,38 +1857,41 @@ max.DB.list <- lapply(unlist, max)
 # ****************************
 # del:
 # ****
-Y.del.MEM <- test.W.R2(nb = Y.del, xy = C, MEM.autocor = MEM_model)
-Y.del.MEM.f1 <- test.W.R2(nb = Y.del, xy = C, f = f1, dmax = max.del, 
+Y.del.MEM <- test.W.R2(nb = Y.del, xy = C, style = style, MEM.autocor = MEM_model)
+Y.del.MEM.f1 <- test.W.R2(nb = Y.del, xy = C, f = f1, dmax = max.del, style = style, 
                           MEM.autocor = MEM_model)
 # gab:
 # ****
-Y.gab.MEM <- test.W.R2(nb = Y.gab, xy = C, MEM.autocor = MEM_model)
-Y.gab.MEM.f1 <- test.W.R2(nb = Y.gab, xy = C, f = f1, dmax = max.gab, 
+Y.gab.MEM <- test.W.R2(nb = Y.gab, xy = C, style = style, MEM.autocor = MEM_model)
+Y.gab.MEM.f1 <- test.W.R2(nb = Y.gab, xy = C, f = f1, dmax = max.gab, style = style, 
                           MEM.autocor = MEM_model)
 # rel:
 # ****
-Y.rel.MEM <- test.W.R2(nb = Y.rel, xy = C, MEM.autocor = MEM_model)
-Y.rel.MEM.f1 <- test.W.R2(nb = Y.rel, xy = C, f = f1, dmax = max.rel, 
+Y.rel.MEM <- test.W.R2(nb = Y.rel, xy = C, style = style, MEM.autocor = MEM_model)
+Y.rel.MEM.f1 <- test.W.R2(nb = Y.rel, xy = C, f = f1, dmax = max.rel, style = style, 
                           MEM.autocor = MEM_model)
 # mst:
 # ****
-Y.mst.MEM <- test.W.R2(nb = Y.mst, xy = C, MEM.autocor = MEM_model)
-Y.mst.MEM.f1 <- test.W.R2(nb = Y.mst, xy = C, f = f1, dmax = max.mst, 
+Y.mst.MEM <- test.W.R2(nb = Y.mst, xy = C, style = style, MEM.autocor = MEM_model)
+Y.mst.MEM.f1 <- test.W.R2(nb = Y.mst, xy = C, f = f1, dmax = max.mst, style = style, 
                           MEM.autocor = MEM_model)
 # DB:
 # ***
-Y.DB1.MEM <- test.W.R2(nb = Y.listDB[[1]], xy = C, MEM.autocor = MEM_model)
+Y.DB1.MEM <- test.W.R2(nb = Y.listDB[[1]], xy = C, style = style, 
+                       MEM.autocor = MEM_model)
 Y.DB1.MEM.f1 <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f1, dmax = max.DB.list[[1]], 
-                          MEM.autocor = MEM_model)
-Y.DB2.MEM <- test.W.R2(nb = Y.listDB[[2]], xy = C, MEM.autocor = MEM_model)
+                          style = style, MEM.autocor = MEM_model)
+Y.DB2.MEM <- test.W.R2(nb = Y.listDB[[2]], xy = C, style = style, 
+                       MEM.autocor = MEM_model)
 Y.DB2.MEM.f1 <- test.W.R2(nb = Y.listDB[[2]], xy = C, f = f1, dmax = max.DB.list[[2]], 
-                          MEM.autocor = MEM_model)
-Y.DB3.MEM <- test.W.R2(nb = Y.listDB[[3]], xy = C, MEM.autocor = MEM_model)
+                          style = style, MEM.autocor = MEM_model)
+Y.DB3.MEM <- test.W.R2(nb = Y.listDB[[3]], xy = C, style = style, 
+                       MEM.autocor = MEM_model)
 Y.DB3.MEM.f1 <- test.W.R2(nb = Y.listDB[[3]], xy = C, f = f1, dmax = max.DB.list[[3]], 
-                          MEM.autocor = MEM_model)
+                          style = style, MEM.autocor = MEM_model)
 # DBMEM with PCNM criteria:
 # *************************
-Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, 
+Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = style, 
                        MEM.autocor = MEM_model)
 
 
@@ -1922,50 +1930,50 @@ for (i in 1:nperm) {
   # ****************************************************************************
   # del:
   # ****
-  Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.del, y = 2:10)
-  Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.del, y = 2:10)
+  Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 2:5)
+  Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f3, dmax = max.del, y = 1:5)
   # gab:
   # ****
-  Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.gab, y = 2:10)
-  Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.gab, y = 2:10)
+  Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 2:5)
+  Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f3, dmax = max.gab, y = 1:5)
   # rel:
   # ****
-  Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.rel, y = 2:10)
-  Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.rel, y = 2:10)
+  Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 2:5)
+  Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f3, dmax = max.rel, y = 1:5)
   # mst:
   # ****
-  Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.mst, y = 2:10)
-  Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.mst, y = 2:10)
+  Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 2:5)
+  Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f3, dmax = max.mst, y = 1:5)
   # DB:
   # ***
   Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[1]], 
-                            y = 2:10)
-  Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
+                            style = style, MEM.autocor = MEM_model, f = f2, 
+                            dmax = max.DB.list[[1]], y = 2:5)
+  Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[1]],
-                            y = 2:10)
+                            y = 1:5)
   
-  Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
+  Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[2]], 
-                            y = 2:10)
-  Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
+                            y = 2:5)
+  Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[2]],
-                            y = 2:10)
+                            y = 1:5)
   
-  Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
+  Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[3]], 
-                            y = 2:10)
-  Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
+                            y = 2:5)
+  Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[3]],
-                            y = 2:10)
+                            y = 1:5)
   
   # Significance test and MEM var. selection (fwd.sel with double stopping criterion):
   # **********************************************************************************
@@ -2601,50 +2609,50 @@ for (i in 1:nperm) {
   # ****************************************************************************
   # del:
   # ****
-  Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.del, y = 2:10)
-  Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.del, y = 2:10)
+  Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 2:5)
+  Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f3, dmax = max.del, y = 1:5)
   # gab:
   # ****
-  Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.gab, y = 2:10)
-  Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.gab, y = 2:10)
+  Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style,  
+                            MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 2:5)
+  Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style,  
+                            MEM.autocor = MEM_model, f = f3, dmax = max.gab, y = 1:5)
   # rel:
   # ****
-  Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.rel, y = 2:10)
-  Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.rel, y = 2:10)
+  Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 2:5)
+  Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style,  
+                            MEM.autocor = MEM_model, f = f3, dmax = max.rel, y = 1:5)
   # mst:
   # ****
-  Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, MEM.autocor = MEM_model, 
-                            f = f2, dmax = max.mst, y = 2:10)
-  Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, MEM.autocor = MEM_model, 
-                            f = f3, dmax = max.mst, y = 2:10)
+  Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 2:5)
+  Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
+                            MEM.autocor = MEM_model, f = f3, dmax = max.mst, y = 1:5)
   # DB:
   # ***
-  Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
+  Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[1]], 
-                            y = 2:10)
-  Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
+                            y = 2:5)
+  Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[1]], 
-                            y = 2:10)
+                            y = 1:5)
   
-  Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
+  Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[2]], 
-                            y = 2:10)
-  Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
+                            y = 2:5)
+  Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[2]],
-                            y = 2:10)
+                            y = 1:5)
   
-  Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
+  Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[3]], 
-                            y = 2:10)
-  Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
+                            y = 2:5)
+  Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[3]],
-                            y = 2:10)
+                            y = 1:5)
   
   # Significance test and MEM var. selection (fwd.sel with double stopping criterion):
   # **********************************************************************************
