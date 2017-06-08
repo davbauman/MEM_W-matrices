@@ -53,6 +53,7 @@
 
 MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all"), 
                        alpha_thresh = 0.05)
+{  
   
    library(vegan)       # Eliminer quand sera dans le package
    library(adespatial)  # Eliminer quand sera dans le package
@@ -184,19 +185,22 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
           L <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 
                     MEM.AdjR2Cum = listR2[[best]], name = names(candidates)[best], 
                     param_index = results[best, 4], pval = results[best, 1], 
-                    R2adj = results[best, 2], NbVar = results[best, 3])
+                    R2adj = results[best, 2], NbVar = results[best, 3], 
+                    bestw_index = best)
         } else {
           lenlist <- c(lenlist, cor[h])
           if (h == 1) {
             L1 <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 
                        MEM.AdjR2Cum = listR2[[best]], name = names(candidates)[best], 
                        param_index = results[best, 4], pval = results[best, 1], 
-                       R2adj = results[best, 2], NbVar = results[best, 3])
+                       R2adj = results[best, 2], NbVar = results[best, 3], 
+                       bestw_index = best)
           } else {
             L2 <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 
                        MEM.AdjR2Cum = listR2[[best]], name = names(candidates)[best], 
                        param_index = results[best, 4], pval = results[best, 1], 
-                       R2adj = results[best, 2], NbVar = results[best, 3])
+                       R2adj = results[best, 2], NbVar = results[best, 3], 
+                       bestw_index = best)
           }
         }
       }
@@ -233,7 +237,7 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
            "*****************************************************", "\n", sep = "")
        list(MEM.all = L$MEM.all, MEM.select = L$MEM.select, 
             MEM.AdjR2Cum = L$MEM.AdjR2Cum, name = L$name, param_index = L$param_index,
-            pval = L$pval, R2adj = L$R2adj, NbVar = L$NbVar)
+            pval = L$pval, R2adj = L$R2adj, NbVar = L$NbVar, bestw_index = L$bestw_index)
      } else cat("\n", "\n", "*****************************************************", 
                 "\n", "*****************************************************", "\n",
                 "No significant spatial structure was detected in the data.", "\n",

@@ -130,19 +130,22 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
         L <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 
                   MEM.AdjR2Cum = listR2[[best]], name = names(candidates)[best], 
                   param_index = results[best, 4], pval = results[best, 1], 
-                  R2adj = results[best, 2], NbVar = results[best, 3])
+                  R2adj = results[best, 2], NbVar = results[best, 3], 
+                  bestw_index = best)
       } else {
         lenlist <- c(lenlist, cor[h])
         if (h == 1) {
           L1 <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 
                      MEM.AdjR2Cum = listR2[[best]], name = names(candidates)[best], 
                      param_index = results[best, 4], pval = results[best, 1], 
-                     R2adj = results[best, 2], NbVar = results[best, 3])
+                     R2adj = results[best, 2], NbVar = results[best, 3], 
+                     bestw_index = best)
         } else {
           L2 <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 
                      MEM.AdjR2Cum = listR2[[best]], name = names(candidates)[best], 
                      param_index = results[best, 4], pval = results[best, 1], 
-                     R2adj = results[best, 2], NbVar = results[best, 3])
+                     R2adj = results[best, 2], NbVar = results[best, 3], 
+                     bestw_index = best)
         }
       }
     }
@@ -152,9 +155,9 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
   if (length(lenlist) == 2) {
     cat("\n", "\n", "*****************************************************", "\n",
         "*****************************************************", "\n",
-        "A best positive (p-value = ", round(L1$pval, 5), ", R2adj of the", 
+        "A best positive (corrected p-value = ", round(L1$pval, 5), ", R2adj of the", 
         "\n", "selected MEM variables = ", round(L1$R2adj, 3), 
-        ") and best negative (p-value = ", round(L2$pval, 5), ",", "\n", 
+        ") and best negative (corrected p-value = ", round(L2$pval, 5), ",", "\n", 
         "R2adj of the selected MEM variables = ", round(L2$R2adj, 3), ")", 
         "MEM models were selected.", "\n", 
         "The corresponding spatial weighting W matrices are ", 
@@ -179,7 +182,7 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
           "*****************************************************", "\n", sep = "")
       list(MEM.all = L$MEM.all, MEM.select = L$MEM.select, 
            MEM.AdjR2Cum = L$MEM.AdjR2Cum, name = L$name, param_index = L$param_index,
-           pval = L$pval, R2adj = L$R2adj, NbVar = L$NbVar)
+           pval = L$pval, R2adj = L$R2adj, NbVar = L$NbVar, bestw_index = L$bestw_index)
     } else cat("\n", "\n", "*****************************************************", 
                "\n", "*****************************************************", "\n",
                "No significant spatial structure was detected in the data.", "\n",
