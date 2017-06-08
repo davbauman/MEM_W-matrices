@@ -2,7 +2,7 @@
 ### Connectivity parameters of the different connectivity matrices ###
 # ****************************************************************** #
 
-rm(list = ls())
+# rm(list = ls())
 
 # Usefull packages and functions:
 # *******************************
@@ -16,7 +16,7 @@ library(spdep)
 
 # Sampling design:
 
-design <- "random"    # Either "clustered" or "random"
+design <- "clustered"    # Either "clustered" or "random"
 
 nperm <- 1000
 
@@ -41,7 +41,7 @@ connect_param[8, ] <- c(1:ncol(connect_param))
 # The MEM are built for a full grid (50 x 25 cells):
 # **************************************************
 
-xy <- expand.grid(x = seq(1, 500, 1), y = seq(1, 250, 1))
+xy <- expand.grid(x = seq(1, 150, 1), y = seq(1, 75, 1))
 
 # ***************************************************************** #
 ### I. The response remains unchanged and the sampling design varies:
@@ -55,12 +55,12 @@ for (i in 1:nperm) {
   if (design == "clustered") {
     C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
     set.seed(i)
-    x1 <- runif(39, min = sample(c(1:50), 1), max = sample(c(120:140), 1))
-    y1 <- runif(39, min = sample(c(130:170), 1), max = sample(c(220:250), 1))
-    x2 <- runif(39, min = sample(c(180:210), 1), max = sample(c(270:310), 1))
-    y2 <- runif(39, min = sample(c(130:170), 1), max = sample(c(220:250), 1))
-    x3 <- runif(39, min = sample(c(330:380), 1), max = sample(c(450:498), 1))
-    y3 <- runif(39, min = sample(c(1:50), 1), max = sample(c(100:150), 1))
+    x1 <- runif(39, min = sample(c(1:15), 1), max = sample(c(36:42), 1))
+    y1 <- runif(39, min = sample(c(39:51), 1), max = sample(c(66:75), 1))
+    x2 <- runif(39, min = sample(c(54:63), 1), max = sample(c(81:93), 1))
+    y2 <- runif(39, min = sample(c(36:49), 1), max = sample(c(66:75), 1))
+    x3 <- runif(39, min = sample(c(99:114), 1), max = sample(c(135:148), 1))
+    y3 <- runif(39, min = sample(c(1:15), 1), max = sample(c(30:45), 1))
     
     C[, 1] <- rbind(x1, x2, x3)
     C[, 2] <- rbind(y1, y2, y3)
@@ -69,8 +69,8 @@ for (i in 1:nperm) {
     
     C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
     set.seed(i)
-    C[, 1] <- runif(117, min = 1, max = 498)
-    C[, 2] <- runif(117, min = 1, max = 250) 
+    C[, 1] <- runif(117, min = 1, max = 148)
+    C[, 2] <- runif(117, min = 1, max = 75) 
     
   }
   
@@ -82,7 +82,7 @@ for (i in 1:nperm) {
   for (k in 1:nrow(C)) {
     x <- floor((C[k, 1]) / (grid.size))
     y <- floor((C[k, 2]) / (grid.size))
-    N <- y * 500 + x + 1
+    N <- y * 150 + x + 1
     tri <- c(tri, N)
   }
   

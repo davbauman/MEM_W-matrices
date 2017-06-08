@@ -51,17 +51,8 @@
 # the function returns a list of two lists (MEM.pos and MEM.neg), each one containing 
 # the same information as described above. 
 
-
-
-# Il faut rajouter binary dans les arguments !
-# Et il faut aussi en tenir compte dans le calcul du nombre de tests effectués !
-
-# Pour les listes dans la liste (f2 et f3), la valeur du 'y' est le nom (names) de 
-# l'élément liste (v. listw.candidate)
-
 MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all"), 
                        alpha_thresh = 0.05)
-{
   
    library(vegan)       # Eliminer quand sera dans le package
    library(adespatial)  # Eliminer quand sera dans le package
