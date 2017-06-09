@@ -186,7 +186,6 @@ resultsM_pop[30, c(1010:2009, 3010:4009)] <- R2_pop_med
 # reuse them at the medium scale to spare time.
 
 C.list <- vector("list", nperm)
-MEMsub.list <- vector("list", nperm)
 
    ######################
    ######################
@@ -266,8 +265,7 @@ C.list[[i]] <- C
 
 # We keep the lines of MEM that correspond to the sampled cells ('tri'):
 # **********************************************************************
-MEMsub <- MEM[sort, ]
-MEMsub.list[[i]] <- MEMsub
+MEMsub <- y_spa_broad_st[sort]
 
 # We sample the response variable within the sampled cells ('y_sub'):
 # *******************************************************************
@@ -275,11 +273,11 @@ y_sub <- y_broad[sort]
 
 # Real p-value and R2_sub:
 # ************************
-x <- MEMsub[, c(1, 3, 5)]
-lm <- lm(y_sub ~ ., data = x)
-R2_sub <- summary(lm)$adj.r.squared
-resultsB_pop[31, c(2009+i, 3009+i)] <- R2_sub
-resultsB_pop[32, 9+i] <- lmp(lm)
+lm <- lm(y_sub ~ MEMsub)
+resultsB_pop[4, 9+i] <- lmp(lm)
+R2_sub <- cor(y_sub, y_spa_broad_st[sort])^2                                          
+resultsB_pop[3, c(2009+i, 3009+i)] <- R2_sub
+resultsB_pop[1, 3009+i] <- R2_sub - R2_pop_broad
 
 # Visualisation:
 # **************
@@ -1010,7 +1008,7 @@ for (i in 1:nperm) {
   
   # We keep the lines of MEM that correspond to the sampled cells ('tri'):
   # **********************************************************************
-  MEMsub <- MEMsub.list[[i]]
+  MEMsub <- y_spa_med_st[as.numeric(row.names(C))]
   
   # We sample the response variable within the sampled cells ('y_sub'):
   # *******************************************************************
@@ -1018,11 +1016,11 @@ for (i in 1:nperm) {
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(211, 212, 215)]
-  lm <- lm(y_sub ~ ., data = x)
-  R2_sub <- summary(lm)$adj.r.squared
-  resultsM_pop[31, c(2009+i, 3009+i)] <- R2_sub
-  resultsM_pop[32, 9+i] <- lmp(lm)
+  lm <- lm(y_sub ~ MEMsub)
+  resultsM_pop[4, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2     
+  resultsM_pop[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsM_pop[1, 3009+i] <- R2_sub - R2_pop_med
   
   # Construction of the different W matrices:
   # #########################################
@@ -1808,10 +1806,6 @@ while (control != nrow(C)) {
 C <- xy[sort, ]
 xy.d1 <- dist(C)
 
-# We keep the lines of MEM that correspond to the sampled cells ('tri'):
-# **********************************************************************
-MEMsub <- MEM[sort, ]
-
 # Construction of the different W matrices:
 # #########################################
 # The W matrices using a concdown or concup weighting matrix will be constructed
@@ -1895,6 +1889,10 @@ Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = s
 ######################
 ######################
 
+# We keep the lines of MEM that correspond to the sampled cells ('tri'):
+# **********************************************************************
+MEMsub <- y_spa_broad_st[sort]
+
 for (i in 1:nperm) { 
   
   set.seed(i)
@@ -1909,16 +1907,15 @@ for (i in 1:nperm) {
   R2_pop_broad <- cor(y_broad, y_spa_broad_st)^2
   resultsB_sub[30, c(1009+i, 3009+i)] <- R2_pop_broad
   
-  y_sub <- y_broad[as.numeric(row.names(C))]
+  y_sub <- y_broad[sort]
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(1, 3, 5)]
-  
-  lm <- lm(y_sub ~ ., data = x)
-  R2_sub <- summary(lm)$adj.r.squared
-  resultsB_sub[31, c(2009+i, 3009+i)] <- R2_sub
-  resultsB_sub[32, 9+i] <- lmp(lm)
+  lm <- lm(y_sub ~ MEMsub)
+  resultsB_sub[4, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2                                          
+  resultsB_sub[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsB_sub[1, 3009+i] <- R2_sub - R2_pop_broad
   
   # Generation of the remaining W matrices (with concdown and concup functions):
   # ****************************************************************************
@@ -2574,6 +2571,10 @@ write.table(resultsB_sub, file = res_file_name, sep = "\t")
 ########################
 ########################
 
+# We keep the lines of MEM that correspond to the sampled cells ('tri'):
+# **********************************************************************
+MEMsub <- y_spa_med_st[sort]
+
 for (i in 1:nperm) {
   
   set.seed(i)
@@ -2588,16 +2589,15 @@ for (i in 1:nperm) {
   R2_pop_med <- cor(y_med, y_spa_med_st)^2
   resultsM_sub[30, c(1009+i, 3009+i)] <- R2_pop_med
   
-  y_sub <- y_med[as.numeric(row.names(C))]
+  y_sub <- y_med[sort]
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(211, 212, 215)]
-  
-  lm <- lm(y_sub ~ ., data = x)
-  R2_sub <- summary(lm)$adj.r.squared
-  resultsM_sub[31, c(2009+i, 3009+i)] <- R2_sub
-  resultsM_sub[32, 9+i] <- lmp(lm)
+  lm <- lm(y_sub ~ MEMsub)
+  resultsM_sub[4, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2     
+  resultsM_sub[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsM_sub[1, 3009+i] <- R2_sub - R2_pop_med
   
   # Generation of the remaining W matrices (with concdown and concup functions):
   # ****************************************************************************

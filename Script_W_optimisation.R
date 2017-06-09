@@ -157,7 +157,6 @@ resultsM_pop[2, c(1010:2009, 3010:4009)] <- R2_pop_med
 # reuse them at the medium scale to spare time.
 
 C.list <- vector("list", nperm)
-MEMsub.list <- vector("list", nperm)
 candidates.list <- vector("list", nperm)
 
 # To compute the selection percentages of each W matrix:
@@ -247,21 +246,19 @@ for (i in 1:nperm) {
   
   # We keep the lines of MEM that correspond to the sampled cells ('tri'):
   # **********************************************************************
-  MEMsub <- MEM[sort, ]
-  MEMsub.list[[i]] <- MEMsub
-  
+  MEMsub <- y_spa_broad_st[sort]
+
   # We sample the response variable within the sampled cells ('y_sub'):
   # *******************************************************************
   y_sub <- y_broad[sort]
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(1, 9, 15)]
-  lm <- lm(y_sub ~ ., data = x)
-  R2_sub <- summary(lm)$adj.r.squared
+  lm <- lm(y_sub ~ MEMsub)
+  resultsB_pop[4, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_broad_st[sort])^2                                          
   resultsB_pop[3, c(2009+i, 3009+i)] <- R2_sub
   resultsB_pop[1, 3009+i] <- R2_sub - R2_pop_broad
-  resultsB_pop[4, 9+i] <- lmp(lm)
 
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
@@ -331,7 +328,7 @@ for (i in 1:nperm) {
   
   # We keep the lines of MEM that correspond to the sampled cells ('tri'):
   # **********************************************************************
-  MEMsub <- MEMsub.list[[i]]
+  MEMsub <- y_spa_med_st[as.numeric(row.names(C))]
   
   # We sample the response variable within the sampled cells ('y_sub'):
   # *******************************************************************
@@ -339,13 +336,12 @@ for (i in 1:nperm) {
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(633, 636, 645)]
-  lm <- lm(y_sub ~ ., data = x)
-  R2_sub <- summary(lm)$adj.r.squared
+  lm <- lm(y_sub ~ MEMsub)
+  resultsM_pop[4, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2     
   resultsM_pop[3, c(2009+i, 3009+i)] <- R2_sub
   resultsM_pop[1, 3009+i] <- R2_sub - R2_pop_med
-  resultsM_pop[4, 9+i] <- lmp(lm)
-  
+
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
   # **************************************************
@@ -468,15 +464,15 @@ while (control != nrow(C)) {
 C <- xy[sort, ]
 candidates <- listw.candidates(C, style = style)
 
-# We keep the lines of MEM that correspond to the sampled cells ('tri'):
-# **********************************************************************
-MEMsub <- MEM[sort, ]
-
    ######################
    ######################
    ### I. Broad scale ###
    ######################
    ######################
+
+# We keep the lines of MEM that correspond to the sampled cells ('tri'):
+# **********************************************************************
+MEMsub <- y_spa_broad_st[sort]
 
 # To compute the selection percentages of each W matrix:
 bestmod_indexB <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
@@ -498,16 +494,15 @@ for (i in 1:nperm) {
   R2_pop_broad <- cor(y_broad, y_spa_broad_st)^2
   resultsB_sub[2, c(1009+i, 3009+i)] <- R2_pop_broad
   
-  y_sub <- y_broad[as.numeric(row.names(C))]
+  y_sub <- y_broad[sort]
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(1, 9, 15)]
-  lm <- lm(y_sub ~ ., data = x)
-  R2_sub <- summary(lm)$adj.r.squared
+  lm <- lm(y_sub ~ MEMsub)
+  resultsB_sub[4, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2                                          
   resultsB_sub[3, c(2009+i, 3009+i)] <- R2_sub
   resultsB_sub[1, 3009+i] <- R2_sub - R2_pop_broad
-  resultsB_sub[4, 9+i] <- lmp(lm)
 
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
@@ -562,6 +557,10 @@ write.table(bestmod_indexB, file = bestmod_index_file_name, sep = "\t")
    ########################
    ########################
 
+# We keep the lines of MEM that correspond to the sampled cells ('tri'):
+# **********************************************************************
+MEMsub <- y_spa_med_st[sort]
+
 # To compute the selection percentages of each W matrix:
 bestmod_indexM <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
 colnames(bestmod_indexM) <- c("W matrix", "Proportion", paste("best", c(1:nperm),
@@ -582,16 +581,15 @@ for (i in 1:nperm) {
   R2_pop_med <- cor(y_med, y_spa_med_st)^2
   resultsM_sub[2, c(1009+i, 3009+i)] <- R2_pop_med
   
-  y_sub <- y_med[as.numeric(row.names(C))]
+  y_sub <- y_med[sort]
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(633, 636, 645)]
-  lm <- lm(y_sub ~ ., data = x)
-  R2_sub <- summary(lm)$adj.r.squared
-  resultsM_sub[3, c(2009+i, 3009+i)] <- R2_sub
-  resultsM_sub[1, 3009+i] <- R2_sub - R2_pop_broad
+  lm <- lm(y_sub ~ MEMsub)
   resultsM_sub[4, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2     
+  resultsM_sub[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsM_sub[1, 3009+i] <- R2_sub - R2_pop_med
   
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
