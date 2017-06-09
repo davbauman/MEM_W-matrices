@@ -19,6 +19,9 @@ listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = 
                              binary = TRUE, weightfun = TRUE, flin = TRUE, 
                              fconcdown = TRUE, fconcup = TRUE, ymax = 5)
 {
+  
+  if (any(is.na(coord))) stop("NA entries in coord")
+  
   # Definition of the weighting functions:
   if (weightfun == TRUE) {
     f1 <- function (D, dmax)     { 1 - (D/dmax) }       # Linear function

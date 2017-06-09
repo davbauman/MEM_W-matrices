@@ -6,8 +6,7 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
   library(adespatial)  # Eliminer quand sera dans le package
   
   x <- as.data.frame(x)
-  if (any(is.na(x)) | any(is.na(coord))) stop("NA entries in x or coord")
-  if (nrow(x) != nrow(coord)) stop("different number of rows")
+  if (any(is.na(x))) stop ("NA entries in x or coord")
   
   # **********************************************************************************
   # The MEM.test function tests the significance of a W matrix while taking into
@@ -122,9 +121,9 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
       }
     }
     # Selection of the best W matrix (and best model within it):
+    lenlist <- c()   # Will help with the result output  
     if (length(which(results[, 1] <= alpha_thresh)) > 0) {
       best <- which.max(results[, 2])
-      lenlist <- c()   # Will help with the result output  
       if (autocor != "all") {
         lenlist <- c(lenlist, cor[h])
         L <- list(MEM.all = listW[[best]], MEM.select = listMEM[[best]], 

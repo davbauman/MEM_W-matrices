@@ -121,7 +121,7 @@ xy <- expand.grid(x = seq(1, 150, 1), y = seq(1, 75, 1))
 
 nb <- cell2nb(nrow = 75, ncol = 150, "queen")
 nb2 <- nb2listw(nb, style = style)
-MEM <- scores.listw(nb2, style = style, MEM.autocor = MEM_model)
+MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 
 # xy_attr <- attr(nb, "region.id")
 # XY <- matrix(as.integer(unlist(strsplit(xy_attr, ":"))), ncol = 2, byrow = TRUE)
@@ -229,12 +229,6 @@ for (i in 1:nperm) {
   # N <- y * (nb horizontal de quadrats) + x + 1 ; pour que la numérotation des 
   # quadrats se fasse de bas en haut en partant du coin inférieur gauche :
   # N <- x * (nb vertical de quadrats) + y + 1
-  
-  #  # Comme les coord. sont comprises entre 0.02 et 1 et 0.02 et 0.5, on les multiplie
-  #  # par 50 (momentanément) pour attributer une cellule à chaque point.
-  
-  # Attribute each sampled point to one of the grid cells:
-  # ******************************************************
   
   grid.size <- 1
   tri <- c()

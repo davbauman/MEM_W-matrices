@@ -1,7 +1,7 @@
 ################################################################
 ### ****************** Test of MEM.modsel ****************** ###
 
-rm(list=ls())
+# rm(list=ls())
 
 # Usefull packages and functions:
 # *******************************
@@ -11,6 +11,7 @@ library(adespatial)
 library(spdep)
 
 source("lmp.R")
+source("test.W.R2.R") 
 
 # Definition of the simulation parameters:
 # ****************************************
@@ -21,18 +22,14 @@ MEM_model = "positive"   # Either "positive" or "negative"
 # Sampling design:
 design <- "clustered"    # Either "clustered" or "random"
 
-nperm <- 3
+nperm <- 1000
 
 # Structuring Intensity (low or high):
-a <- 0.35   # 0.35 or 0.55
+a <- 0.55   # 0.35 or 0.55
 if (a < 0.5) intensity = "Weak" else intensity = "Strong"
 
 style <- "B"                  # Either "B" or "W"
 correction <- "Corrected"     # Either "Corrected" or "Uncorrected"
-
-if (style == "B") {
-  source("test.W.R2_styleB.R") 
-} else source("test.W.R2_styleW.R") 
 
 if (correction == "Corrected") {
   source("MEM.modsel - correction.R")
@@ -92,11 +89,11 @@ resultsM_sub[5, ] <- c(1:ncol(resultsM_sub))
 # The MEM are built for a full grid (50 x 25 cells):
 # **************************************************
 
-xy <- expand.grid(x = seq(1, 50, 1), y = seq(1, 25, 1))
+xy <- expand.grid(x = seq(1, 150, 1), y = seq(1, 75, 1))
 # plot(xy, cex = 1)
 
-nb <- cell2nb(nrow = 25, ncol = 50, "queen")
-nb2 <- nb2listw(nb)
+nb <- cell2nb(nrow = 75, ncol = 150, "queen")
+nb2 <- nb2listw(nb, style = style)
 MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 
 # xy_attr <- attr(nb, "region.id")
@@ -124,8 +121,8 @@ MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 
 set.seed(1)
 
-y_spa_broad <- MEM[, 1] + MEM[, 3] + MEM[, 5]
-y_spa_med <- MEM[, 211] + MEM[, 212] + MEM[, 215]
+y_spa_broad <- MEM[, 1] + MEM[, 9] + MEM[, 15]
+y_spa_med <- MEM[, 633] + MEM[, 636] + MEM[, 645]
 y_noise <- rnorm(n = nrow(MEM), mean = 0, sd = 1)
 
 y_spa_broad_st <- scale(y_spa_broad)
@@ -161,6 +158,25 @@ resultsM_pop[2, c(1010:2009, 3010:4009)] <- R2_pop_med
 
 C.list <- vector("list", nperm)
 MEMsub.list <- vector("list", nperm)
+candidates.list <- vector("list", nperm)
+
+# To compute the selection percentages of each W matrix:
+namesw <- c("DBMEM_PCNM", "Delaunay_Binary weighting", "Delaunay_Linear weighting",
+           "Delaunay_Concave down weighting", "Delaunay_Concave up weighting",
+           "Gabriel_Binary weighting", "Gabriel_Linear weighting", 
+           "Gabriel_Concave down weighting", "Gabriel_Concave up weighting",
+           "Relative neighbourhood_Binary weighting", 
+           "Relative neighbourhood_Linear weighting", 
+           "Relative neighbourhood_Concave down weighting",
+           "Relative neighbourhood_Concave up weighting", 
+           "Minimum spanning tree_Binary weighting",
+           "Minimum spanning tree_Linear weighting",
+           "Minimum spanning tree_Concave down weighting",
+           "Minimum spanning tree_Concave up weighting")
+bestmod_indexB <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
+colnames(bestmod_indexB) <- c("W matrix", "Proportion", paste("best", c(1:nperm),
+                                                              sep = ""))
+bestmod_indexB[, 1] <- namesw
 
    ######################
    ######################
@@ -176,12 +192,12 @@ for (i in 1:nperm) {
   if (design == "clustered") {
     C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
     set.seed(i)
-    x1 <- runif(39, min = 2, max = 14)
-    y1 <- runif(39, min = 17, max = 25)
-    x2 <- runif(39, min = 19, max = 34)
-    y2 <- runif(39, min = 15, max = 25)
-    x3 <- runif(39, min = 30, max = 50)
-    y3 <- runif(39, min = 1, max = 10)
+    x1 <- runif(39, min = sample(c(1:15), 1), max = sample(c(36:42), 1))
+    y1 <- runif(39, min = sample(c(39:51), 1), max = sample(c(66:75), 1))
+    x2 <- runif(39, min = sample(c(54:63), 1), max = sample(c(81:93), 1))
+    y2 <- runif(39, min = sample(c(36:49), 1), max = sample(c(66:75), 1))
+    x3 <- runif(39, min = sample(c(99:114), 1), max = sample(c(135:148), 1))
+    y3 <- runif(39, min = sample(c(1:15), 1), max = sample(c(30:45), 1))
     
     C[, 1] <- rbind(x1, x2, x3)
     C[, 2] <- rbind(y1, y2, y3)
@@ -190,8 +206,8 @@ for (i in 1:nperm) {
     
     C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
     set.seed(i)
-    C[, 1] <- runif(117, min = 1, max = 50)
-    C[, 2] <- runif(117, min = 1, max = 25) 
+    C[, 1] <- runif(117, min = 1, max = 148)
+    C[, 2] <- runif(117, min = 1, max = 75) 
     
   }
   
@@ -203,7 +219,7 @@ for (i in 1:nperm) {
   for (k in 1:nrow(C)) {
     x <- floor((C[k, 1]) / (grid.size))
     y <- floor((C[k, 2]) / (grid.size))
-    N <- y * 50 + x + 1
+    N <- y * 150 + x + 1
     tri <- c(tri, N)
   }
   
@@ -240,25 +256,26 @@ for (i in 1:nperm) {
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(1, 3, 5)]
+  x <- MEMsub[, c(1, 9, 15)]
   lm <- lm(y_sub ~ ., data = x)
   R2_sub <- summary(lm)$adj.r.squared
   resultsB_pop[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsB_pop[1, 3009+i] <- R2_sub - R2_pop_broad
   resultsB_pop[4, 9+i] <- lmp(lm)
 
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
   # **************************************************
    candidates <- listw.candidates(C, style = style)
-   length(candidates$listW)
+   candidates.list[[i]] <- candidates
   
-   memsel <- MEM.modsel(y_sub, C, candidates, autocor = MEM_model, style = style)
+   memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model)
    if (class(memsel) != "NULL") {
       resultsB_pop[1, 9+i] <- memsel$pval
-      resultsB_pop[1, 1009+i] <- memsel$R2adj - R2_sub
-   } else { 
-     resultsB_pop[1, 9+i] <- 1 ; resultsB_pop[1, 1009+i] <- NA 
-     }
+      resultsB_pop[1, 1009+i] <- memsel$R2adj - R2_pop_broad
+      resultsB_pop[1, 2009+i] <- memsel$R2adj - R2_sub
+      bestmod_indexB[which(bestmod_indexB[, 1] == memsel$name), 2+i] <- 1
+   } else resultsB_pop[1, 9+i] <- 1
 }         # End of the simulation ('for') loop
 
 # Median and standard deviation of the deltaR2:
@@ -278,11 +295,22 @@ resultsB_pop[1, 9] <- sd(na.omit(as.numeric(resultsB_pop[1, c(3010:(nperm + 3009
 # Correct significance detection rate
 resultsB_pop[4, 3] <- length(which(resultsB_pop[4, c(10:(nperm + 9))] <= 0.05)) / nperm
 
+# Proportion of selection for each W matrix:
+for (j in 1:nrow(bestmod_indexB)) {
+  bestmod_indexB[j, 2] <- length(which(as.numeric(bestmod_indexB[j, c(3:nperm)]) 
+                                       == 1)) / nperm
+}
+
 # Output of the results:
 # **********************
 res_file_name <- paste("Results_MEM.modsel_pop", correction, intensity, "Broad", 
                        design, paste("style", style, ".txt", sep = ""), sep = "_")
 write.table(resultsB_pop, file = res_file_name, sep = "\t")
+
+bestmod_index_file_name <- paste("Bestmod-prop_MEM.modsel_pop", correction, 
+                            intensity, "Broad", design, paste("style", style, ".txt", 
+                                                              sep = ""), sep = "_")
+write.table(bestmod_indexB, file = bestmod_index_file_name, sep = "\t")
 
    ########################
    ########################
@@ -290,12 +318,16 @@ write.table(resultsB_pop, file = res_file_name, sep = "\t")
    ########################
    ########################
 
+bestmod_indexM <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
+colnames(bestmod_indexM) <- c("W matrix", "Proportion", paste("best", c(1:nperm),
+                                                              sep = ""))
+bestmod_indexM[, 1] <- namesw
+
 for (i in 1:nperm) {
   
   # Sampling scheme:
   # ****************
   C <- C.list[[i]]
-  xy.d1 <- dist(C)
   
   # We keep the lines of MEM that correspond to the sampled cells ('tri'):
   # **********************************************************************
@@ -307,23 +339,30 @@ for (i in 1:nperm) {
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(211, 212, 215)]
+  x <- MEMsub[, c(633, 636, 645)]
   lm <- lm(y_sub ~ ., data = x)
   R2_sub <- summary(lm)$adj.r.squared
   resultsM_pop[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsM_pop[1, 3009+i] <- R2_sub - R2_pop_med
   resultsM_pop[4, 9+i] <- lmp(lm)
   
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
   # **************************************************
+  candidates <- candidates.list[[i]]
+    
+  bestmod_indexM <- as.data.frame(matrix(nrow = len, ncol = nperm + 2))
+  colnames(bestmod_indexM) <- c("W matrix", "Proportion", paste("best", c(1:nperm),
+                                                                sep = ""))
+  bestmod_indexM[, 1] <- names(candidates)
   
-  memsel <- MEM.modsel(y_sub, C, autocor = MEM_model, style = style)
+  memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model)
   if (class(memsel) != "NULL") {
     resultsM_pop[1, 9+i] <- memsel$pval
-    resultsM_pop[1, 1009+i] <- memsel$R2adj - R2_sub
-  } else { 
-    resultsM_pop[1, 9+i] <- 1 ; resultsM_pop[1, 1009+i] <- NA 
-  }
+    resultsM_pop[1, 1009+i] <- memsel$R2adj - R2_pop_med
+    resultsM_pop[1, 2009+i] <- memsel$R2adj - R2_sub
+    bestmod_indexM[which(bestmod_indexM[, 1] == memsel$name), 2+i] <- 1
+  } else resultsM_pop[1, 9+i] <- 1
 }         # End of the simulation ('for') loop
 
 # Median and standard deviation of the deltaR2:
@@ -343,12 +382,22 @@ resultsM_pop[1, 9] <- sd(na.omit(as.numeric(resultsM_pop[1, c(3010:(nperm + 3009
 # Correct significance detection rate
 resultsM_pop[4, 3] <- length(which(resultsM_pop[4, c(10:(nperm + 9))] <= 0.05)) / nperm
 
+# Proportion of selection for each W matrix:
+for (j in 1:nrow(bestmod_indexM)) {
+  bestmod_indexM[j, 2] <- length(which(as.numeric(bestmod_indexM[j, c(3:nperm)]) 
+                                       == 1)) / nperm
+}
+
 # Output of the results:
 # **********************
 res_file_name <- paste("Results_MEM.modsel_pop", correction, intensity, "Medium", 
                        design, paste("style", style, ".txt", sep = ""), sep = "_")
 write.table(resultsM_pop, file = res_file_name, sep = "\t")
 
+bestmod_index_file_name <- paste("Bestmod-prop_MEM.modsel_pop", correction, intensity, 
+                                 "Medium", design, paste("style", style, ".txt", 
+                                                         sep = ""), sep = "_")
+write.table(bestmod_indexM, file = bestmod_index_file_name, sep = "\t")
 
 
 
@@ -363,15 +412,17 @@ write.table(resultsM_pop, file = res_file_name, sep = "\t")
 
 set.seed(1)
 
+# Sampling scheme:
+# ****************
+
 if (design == "clustered") {
   C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  set.seed(i)
-  x1 <- runif(39, min = 2, max = 14)
-  y1 <- runif(39, min = 17, max = 25)
-  x2 <- runif(39, min = 19, max = 34)
-  y2 <- runif(39, min = 15, max = 25)
-  x3 <- runif(39, min = 30, max = 50)
-  y3 <- runif(39, min = 1, max = 10)
+  x1 <- runif(39, min = sample(c(1:15), 1), max = sample(c(36:42), 1))
+  y1 <- runif(39, min = sample(c(39:51), 1), max = sample(c(66:75), 1))
+  x2 <- runif(39, min = sample(c(54:63), 1), max = sample(c(81:93), 1))
+  y2 <- runif(39, min = sample(c(36:49), 1), max = sample(c(66:75), 1))
+  x3 <- runif(39, min = sample(c(99:114), 1), max = sample(c(135:148), 1))
+  y3 <- runif(39, min = sample(c(1:15), 1), max = sample(c(30:45), 1))
   
   C[, 1] <- rbind(x1, x2, x3)
   C[, 2] <- rbind(y1, y2, y3)
@@ -379,30 +430,20 @@ if (design == "clustered") {
 } else {          # design = "random"
   
   C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  set.seed(i)
-  C[, 1] <- runif(117, min = 1, max = 50)
-  C[, 2] <- runif(117, min = 1, max = 25) 
+  C[, 1] <- runif(117, min = 1, max = 148)
+  C[, 2] <- runif(117, min = 1, max = 75) 
   
 }
 
 # Attribute each sampled point to one of the grid cells:
 # ******************************************************
 
-# /25 = taille d'un côté du quadrat ; pour que la numérotation des quadrats se
-# fasse de gauche à droite en partant du coin inférieur gauche de la grille :
-# N <- y * (nb horizontal de quadrats) + x + 1 ; pour que la numérotation des 
-# quadrats se fasse de bas en haut en partant du coin inférieur gauche :
-# N <- x * (nb vertical de quadrats) + y + 1
-
-#  # Comme les coord. sont comprises entre 0.02 et 1 et 0.02 et 0.5, on les multiplie
-#  # par 50 (momentanément) pour attributer une cellule à chaque point.
-
 grid.size <- 1
 tri <- c()
 for (k in 1:nrow(C)) {
   x <- floor((C[k, 1]) / (grid.size))
   y <- floor((C[k, 2]) / (grid.size))
-  N <- y * 50 + x + 1
+  N <- y * 150 + x + 1
   tri <- c(tri, N)
 }
 
@@ -425,7 +466,7 @@ while (control != nrow(C)) {
 }
 # We rearange 'C' so that all sampled point are in different grid cells ('sort'):
 C <- xy[sort, ]
-xy.d1 <- dist(C)
+candidates <- listw.candidates(C, style = style)
 
 # We keep the lines of MEM that correspond to the sampled cells ('tri'):
 # **********************************************************************
@@ -436,6 +477,12 @@ MEMsub <- MEM[sort, ]
    ### I. Broad scale ###
    ######################
    ######################
+
+# To compute the selection percentages of each W matrix:
+bestmod_indexB <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
+colnames(bestmod_indexB) <- c("W matrix", "Proportion", paste("best", c(1:nperm),
+                                                              sep = ""))
+bestmod_indexB[, 1] <- namesw
 
 for (i in 1:nperm) { 
   
@@ -455,11 +502,11 @@ for (i in 1:nperm) {
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(1, 3, 5)]
-  
+  x <- MEMsub[, c(1, 9, 15)]
   lm <- lm(y_sub ~ ., data = x)
   R2_sub <- summary(lm)$adj.r.squared
   resultsB_sub[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsB_sub[1, 3009+i] <- R2_sub - R2_pop_broad
   resultsB_sub[4, 9+i] <- lmp(lm)
 
   # MEM.modsel function: Optimisation of the W matrix:
@@ -469,10 +516,10 @@ for (i in 1:nperm) {
   memsel <- MEM.modsel(y_sub, C, autocor = MEM_model, style = style)
   if (class(memsel) != "NULL") {
     resultsB_sub[1, 9+i] <- memsel$pval
-    resultsB_sub[1, 1009+i] <- memsel$R2adj - R2_sub
-  } else { 
-    resultsB_sub[1, 9+i] <- 1 ; resultsB_sub[1, 1009+i] <- NA 
-  }
+    resultsB_sub[1, 1009+i] <- memsel$R2adj - R2_pop_broad
+    resultsB_sub[1, 2009+i] <- memsel$R2adj - R2_sub
+    bestmod_indexB[which(bestmod_indexB[, 1] == memsel$name), 2+i] <- 1
+  } else resultsB_sub[1, 9+i] <- 1
 }         # End of the simulation ('for') loop
 
 # Median and standard deviation of the deltaR2:
@@ -492,17 +539,34 @@ resultsB_sub[1, 9] <- sd(na.omit(as.numeric(resultsB_sub[1, c(3010:(nperm + 3009
 # Correct significance detection rate
 resultsB_sub[4, 3] <- length(which(resultsB_sub[4, c(10:(nperm + 9))] <= 0.05)) / nperm
 
+# Proportion of selection for each W matrix:
+for (j in 1:nrow(bestmod_indexB)) {
+  bestmod_indexB[j, 2] <- length(which(as.numeric(bestmod_indexB[j, c(3:nperm)]) 
+                                       == 1)) / nperm
+}
+
 # Output of the results:
 # **********************
 res_file_name <- paste("Results_MEM.modsel_sub", correction, intensity, "Broad", 
                        design, paste("style", style, ".txt", sep = ""), sep = "_")
 write.table(resultsB_sub, file = res_file_name, sep = "\t")
 
+bestmod_index_file_name <- paste("Bestmod-prop_MEM.modsel_sub", correction, 
+                                 intensity, "Broad", design, paste("style", style, ".txt", 
+                                                                   sep = ""), sep = "_")
+write.table(bestmod_indexB, file = bestmod_index_file_name, sep = "\t")
+
    ########################
    ########################
    ### II. Medium scale ###
    ########################
    ########################
+
+# To compute the selection percentages of each W matrix:
+bestmod_indexM <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
+colnames(bestmod_indexM) <- c("W matrix", "Proportion", paste("best", c(1:nperm),
+                                                              sep = ""))
+bestmod_indexM[, 1] <- namesw
 
 for (i in 1:nperm) { 
   
@@ -522,11 +586,11 @@ for (i in 1:nperm) {
   
   # Real p-value and R2_sub:
   # ************************
-  x <- MEMsub[, c(211, 212, 215)]
-  
+  x <- MEMsub[, c(633, 636, 645)]
   lm <- lm(y_sub ~ ., data = x)
   R2_sub <- summary(lm)$adj.r.squared
   resultsM_sub[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsM_sub[1, 3009+i] <- R2_sub - R2_pop_broad
   resultsM_sub[4, 9+i] <- lmp(lm)
   
   # MEM.modsel function: Optimisation of the W matrix:
@@ -536,10 +600,10 @@ for (i in 1:nperm) {
   memsel <- MEM.modsel(y_sub, C, autocor = MEM_model, style = style)
   if (class(memsel) != "NULL") {
     resultsM_sub[1, 9+i] <- memsel$pval
-    resultsB_sub[1, 1009+i] <- memsel$R2adj - R2_sub
-  } else { 
-    resultsM_sub[1, 9+i] <- 1 ; resultsM_sub[1, 1009+i] <- NA 
-  }
+    resultsM_sub[1, 1009+i] <- memsel$R2adj - R2_pop_broad
+    resultsM_sub[1, 2009+i] <- memsel$R2adj - R2_sub
+    bestmod_indexM[which(bestmod_indexM[, 1] == memsel$name), 2+i] <- 1
+  } else resultsM_sub[1, 9+i] <- 1
 }         # End of the simulation ('for') loop
 
 # Median and standard deviation of the deltaR2:
@@ -559,8 +623,20 @@ resultsM_sub[1, 9] <- sd(na.omit(as.numeric(resultsM_sub[1, c(3010:(nperm + 3009
 # Correct significance detection rate
 resultsM_sub[4, 3] <- length(which(resultsM_sub[4, c(10:(nperm + 9))] <= 0.05)) / nperm
 
+# Proportion of selection for each W matrix:
+for (j in 1:nrow(bestmod_indexM)) {
+  bestmod_indexM[j, 2] <- length(which(as.numeric(bestmod_indexM[j, c(3:nperm)]) 
+                                       == 1)) / nperm
+}
+
 # Output of the results:
 # **********************
 res_file_name <- paste("Results_MEM.modsel_sub", correction, intensity, "Medium", 
                        design, paste("style", style, ".txt", sep = ""), sep = "_")
 write.table(resultsM_sub, file = res_file_name, sep = "\t")
+
+bestmod_index_file_name <- paste("Bestmod-prop_MEM.modsel_sub", correction, 
+                                 intensity, "Medium", design, paste("style", style, ".txt", 
+                                                                   sep = ""), sep = "_")
+write.table(bestmod_indexB, file = bestmod_index_file_name, sep = "\t")
+
