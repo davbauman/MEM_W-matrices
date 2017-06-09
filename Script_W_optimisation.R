@@ -513,7 +513,7 @@ for (i in 1:nperm) {
   # **************************************************
   # **************************************************
   
-  memsel <- MEM.modsel(y_sub, C, autocor = MEM_model, style = style)
+  memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model)
   if (class(memsel) != "NULL") {
     resultsB_sub[1, 9+i] <- memsel$pval
     resultsB_sub[1, 1009+i] <- memsel$R2adj - R2_pop_broad
@@ -597,7 +597,7 @@ for (i in 1:nperm) {
   # **************************************************
   # **************************************************
   
-  memsel <- MEM.modsel(y_sub, C, autocor = MEM_model, style = style)
+  memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model)
   if (class(memsel) != "NULL") {
     resultsM_sub[1, 9+i] <- memsel$pval
     resultsM_sub[1, 1009+i] <- memsel$R2adj - R2_pop_broad
