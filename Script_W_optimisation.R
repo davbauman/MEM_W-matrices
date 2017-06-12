@@ -121,17 +121,13 @@ MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 
 set.seed(1)
 
-y_spa_broad <- MEM[, 1] + MEM[, 9] + MEM[, 15]
-y_spa_med <- MEM[, 633] + MEM[, 636] + MEM[, 645]
+y_spa_broad <- MEM[, 1] + MEM[, 2] + MEM[, 3]
+y_spa_med <- MEM[, 306] + MEM[, 307] + MEM[, 308]
 y_noise <- rnorm(n = nrow(MEM), mean = 0, sd = 1)
 
 y_spa_broad_st <- scale(y_spa_broad)
 y_spa_med_st <- scale(y_spa_med)
 y_noise_st <- scale(y_noise)
-
-# par(mfrow = c(1, 3))
-# for (i in c(1, 3, 5)) s.value(xy, MEM[,i])
-# for (i in c(211, 212, 215)) s.value(xy, MEM[,i])
 
 # Creation of the response variable 'y' at the whole population level (pop):
 # **************************************************************************

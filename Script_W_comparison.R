@@ -13,10 +13,10 @@
 # Usefull packages and functions:
 # *******************************
 
+# library(ade4)
 library(vegan)
 library(adespatial)
 library(spdep)
-# library(ade4)
 
 source("lmp.R")
 source("test.W.R2.R") 
@@ -150,8 +150,8 @@ MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 
 set.seed(1)
 
-y_spa_broad <- MEM[, 1] + MEM[, 3] + MEM[, 5]
-y_spa_med <- MEM[, 211] + MEM[, 212] + MEM[, 215]
+y_spa_broad <- MEM[, 1] + MEM[, 2] + MEM[, 3]
+y_spa_med <- MEM[, 306] + MEM[, 307] + MEM[, 308]
 y_noise <- rnorm(n = nrow(MEM), mean = 0, sd = 1)
 
 y_spa_broad_st <- scale(y_spa_broad)
@@ -159,8 +159,11 @@ y_spa_med_st <- scale(y_spa_med)
 y_noise_st <- scale(y_noise)
 
 # par(mfrow = c(1, 3))
-# for(i in c(1, 3, 5)) s.value(xy, MEM[,i])
-# for(i in c(211, 212, 215)) s.value(xy, MEM[,i])
+# for(i in c(1:3)) s.value(xy, MEM[,i], csize = 0.4)
+# for(i in c(306:308)) s.value(xy, MEM[,i], csize = 0.4)
+
+# s.value(xy, y_spa_broad, csize = 0.4)
+# s.value(xy, y_spa_med, csize = 0.4)
 
    # Creation of the response variable 'y' at the whole population level (pop):
    # **************************************************************************
@@ -168,7 +171,8 @@ y_noise_st <- scale(y_noise)
 y_broad <- (a * y_spa_broad_st) + ((1-a) * y_noise_st)
 y_med <- (a * y_spa_med_st) + ((1-a) * y_noise_st)
 
-# s.value(xy, y_broad)
+# s.value(xy, y_broad, csize = 0.4)
+# s.value(xy, y_med, csize = 0.4)
 
 R2_pop_broad <- cor(y_broad, y_spa_broad_st)^2
 R2_pop_med <- cor(y_med, y_spa_med_st)^2
