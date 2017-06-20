@@ -89,24 +89,6 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
    }                                                  # End of the MEM.test() function
    # **********************************************************************************
 
-   # **********************************************************************************
-   # Function aiming at choosing the weighting function parameter that maximises the 
-   # R2adj. The function returns 1) the complete W matrix corresponding to the best 
-   # value and 2) the index of the selected parameter value (e.g., 'y' varies from
-   # 5 to 9 and y = 6 is selected, then the function returns y = 2, that is, the index).
-   chooseparam <- function (x = x, lw) 
-   {
-     listw <- vector("list", length(lw))
-     listR2 <- vector("numeric", length(lw))
-     for (i in 1:length(listw)) {
-       listw[[i]] <- scores.listw(lw[[i]], MEM.autocor = cor[h])
-       listR2[i] <- RsquareAdj(rda(x, listw[[i]]))$adj.r.squared
-     }
-     best <- which.max(listR2)
-     list(W = listw[[best]], y_index = best)
-   }                                                # End of the chooseparam() function
-   # **********************************************************************************
-   
    autocor <- match.arg(autocor) 
 
    # Since the loop is entered only once if autocor = "positive" or "negative" 
@@ -148,26 +130,9 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
       param <- rep("NA", nbtest)
       
       for (q in 1:nbtest) {
-        # If length(candidates[[q]]) > 3, we have a list in the candidates list, 
-        # meaning that severall W matrices were build on the basis of a single set of
-        # connectivity and weighting matrices. This occurs when different parameters of
-        # a weighting functions are tested. If this case, the length of candidates[[q]]
-        # corresponds to the number of parameters tested. One parameter value has to be 
-        # chosen based on the global R2adj: the corresponding W matrix is then tested 
-        # using MEM.test(). 
-        # If length == 3, we only have a listw object in candidates[[q]] and the length
-        # of 3 corresponds to "style", "neighbours", and "weights". We only have one 
-        # weighted list that can be directly tested.
-        if (length(candidates[[q]]) == 3) {
           W <- scores.listw(candidates[[q]], MEM.autocor = cor[h])
           listW[[q]] <- W
           listtest[[q]] <- MEM.test(x, W)
-        } else {
-          bestparam <- chooseparam(x = x, lw = candidates[[q]])
-          listW[[q]] <- bestparam$W
-          param[q] <- bestparam$y_index
-          listtest[[q]] <- MEM.test(x, W)
-        }
       }
       # Save the results in order to compare them and choose the best model:
       for (i in 1:nbtest) {
