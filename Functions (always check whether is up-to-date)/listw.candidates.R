@@ -239,7 +239,7 @@ listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = 
         for (i in y_fconcup) {
           listf[[count_list]] <- nb2listw(Y.mst, style = style, 
                                  glist = lapply(nbdists(Y.mst, as.matrix(coord)),
-                                                f3, y = i, dmax = max.mst))
+                                                f3, y = i))
           count_list <- count_list + 1
         }
         names(listf) <- y_fconcup
