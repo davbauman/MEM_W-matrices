@@ -1,48 +1,55 @@
 # Trouver comment gérer la question des DBMEM et des threshold distances
 
-# Idée pour f2 et f3. Avons une liste d'objets de nb2listw, mais pour f2 et f3 avons
-# une liste d'autant d'éléments qu'on teste de y (exp). Avons donc une liste dans la
-# liste. Dans la fonction MEM.modsel, si l'objet[[i]] de la list listwcand est une liste,
-# alors trouvons le meilleur 'y' sur base du R2 (v. test.W.R2) puis faisons le test
-# uniquement sur cette matrice W.
-
 # Pour les listes dans la liste (f2 et f3), la valeur du 'y' est le nom (names) de 
 # l'élément liste (v. listw.candidates)
-
-# Problème est que cette list-output doit ressembler à n'importe quelle liste que
-# l'utilisateur voudrait créer lui-même pour que MEM.modsel puisse traiter la liste
-# lui était fournie de manière égale.
 
 # *********************************************************************************** #
 listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = TRUE, 
                              mst = TRUE, PCNM = TRUE,  DB = TRUE, thresh = "?", 
-                             binary = TRUE, weightfun = TRUE, flin = TRUE, 
-                             fconcdown = TRUE, fconcup = TRUE, ymax = 5)
+                             binary = TRUE, flin = TRUE, fconcdown = TRUE, 
+                             fconcup = TRUE, y_fconcdown = 5, y_fconcup = 0.5)
 {
   
   if (any(is.na(coord))) stop("NA entries in coord")
+  
+  if (length(which(c(flin, fconcdown, fconcup) == TRUE)) != 0) weightfun = TRUE
+  else weightfun = FALSE
   
   # Definition of the weighting functions:
   if (weightfun == TRUE) {
     f1 <- function (D, dmax)     { 1 - (D/dmax) }       # Linear function
     f2 <- function (D, dmax, y)  { 1 - (D/dmax)^y }     # Concave-down function
-    f3 <- function (D, dmax, y)  { 1 / (D/dmax)^y }     # Concave-up function
+    f3 <- function (D, y)        { 1 / D^y }            # Concave-up function
   }
   
   xy.d1 <- dist(coord)
   
   # Total nb of W matrices to build:
-  nbw <- length(which(c(del, gab, rel, mst) == TRUE))  # AJOUTER DB + nb thresh dist.
+  nbB <- length(which(c(del, gab, rel, mst) == TRUE))  # AJOUTER DB + nb thresh dist.
+  nbw <- nbB
+  control_BinLin <- FALSE
+  control_f2 <- FALSE
+  if (length(which(c(binary, flin) == TRUE)) != 0) {
+    control_BinLin <- TRUE
+    nbw <- nbB * length(which(c(binary, flin) == TRUE))
+  }
   if (weightfun == TRUE) {
-    if (binary == TRUE) {
-      nbw <- nbw * (length(which(c(flin, fconcdown, fconcup) == TRUE))+1)
-    } else nbw <- nbw * length(which(c(flin, fconcdown, fconcup) == TRUE))
+    if (fconcdown == TRUE) {
+      control_f2 <- TRUE
+      yf2 <- length(y_fconcdown)
+      if (control_BinLin == TRUE) nbw <- nbw + (nbB * yf2) 
+      else nbw <- nbB * yf2
+    }
+    if (fconcup == TRUE) {
+      yf3 <- length(y_fconcup)
+      if (control_BinLin == TRUE) nbw <- nbw + (nbB * yf3) 
+      else if (control_f2 == TRUE) nbw <- nbw + nbB * yf3 else nbw <- nbB * yf3
+    }
   }
   if (PCNM == TRUE) nbw <- nbw + 1
   
   # List of the W matrix candidates
   listwcand <- vector("list", nbw)
-  listwfeatures <- vector("list", nbw)
   count <- 0
 
   # Construction of the list of W matrix candidates: 
@@ -75,25 +82,29 @@ listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = 
       } 
       if (fconcdown == TRUE) {      
         count <- count + 1
-        listf <- vector("list", ymax-1)
-        for (i in 1:(ymax-1)) {
-          listf[[i]] <- nb2listw(Y.del, style = style, 
+        listf <- vector("list", length(y_fconcdown))
+        count_list <- 1
+        for (i in y_fconcdown) {
+          listf[[count_list]] <- nb2listw(Y.del, style = style, 
                                        glist = lapply(nbdists(Y.del, as.matrix(coord)),
-                                                      f2, y = i+1, dmax = max.del))
+                                                      f2, y = i, dmax = max.del))
+          count_list <- count_list + 1
         }
-        names(listf) <- c(2:ymax)
+        names(listf) <- y_fconcdown
         listwcand[[count]] <- listf
         names(listwcand)[count] <- "Delaunay_Concave down weighting"
       }
       if (fconcup == TRUE) {      
         count <- count + 1
-        listf <- vector("list", ymax)
-        for (i in 1:ymax) {
-          listf[[i]] <- nb2listw(Y.del, style = style, 
+        listf <- vector("list", length(y_fconcup))
+        count_list <- 1
+        for (i in y_fconcup) {
+          listf[[count_list]] <- nb2listw(Y.del, style = style, 
                                  glist = lapply(nbdists(Y.del, as.matrix(coord)),
-                                                f3, y = i, dmax = max.del))
+                                                f3, y = i))
+          count_list <- count_list + 1
         }
-        names(listf) <- c(1:ymax)
+        names(listf) <- y_fconcup
         listwcand[[count]] <- listf
         names(listwcand)[count] <- "Delaunay_Concave up weighting"
       }
@@ -117,25 +128,29 @@ listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = 
       } 
       if (fconcdown == TRUE) {      
         count <- count + 1
-        listf <- vector("list", ymax-1)
-        for (i in 1:(ymax-1)) {
-          listf[[i]] <- nb2listw(Y.gab, style = style, 
+        listf <- vector("list", length(y_fconcdown))
+        count_list <- 1
+        for (i in y_fconcdown) {
+          listf[[count_list]] <- nb2listw(Y.gab, style = style, 
                                  glist = lapply(nbdists(Y.gab, as.matrix(coord)),
-                                                f2, y = i+1, dmax = max.gab))
+                                                f2, y = i, dmax = max.gab))
+          count_list <- count_list + 1
         }
-        names(listf) <- c(2:ymax)
+        names(listf) <- y_fconcdown
         listwcand[[count]] <- listf
         names(listwcand)[count] <- "Gabriel_Concave down weighting"
       }
       if (fconcup == TRUE) {      
         count <- count + 1
-        listf <- vector("list", ymax)
-        for (i in 1:ymax) {
-          listf[[i]] <- nb2listw(Y.gab, style = style, 
+        listf <- vector("list", length(y_fconcup))
+        count_list <- 1
+        for (i in y_fconcup) {
+          listf[[count_list]] <- nb2listw(Y.gab, style = style, 
                                  glist = lapply(nbdists(Y.gab, as.matrix(coord)),
-                                                f3, y = i, dmax = max.gab))
+                                                f3, y = i))
+          count_list <- count_list + 1
         }
-        names(listf) <- c(1:ymax)
+        names(listf) <- y_fconcup
         listwcand[[count]] <- listf
         names(listwcand)[count] <- "Gabriel_Concave up weighting"
       }
@@ -159,25 +174,29 @@ listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = 
       } 
       if (fconcdown == TRUE) {      
         count <- count + 1
-        listf <- vector("list", ymax-1)
-        for (i in 1:(ymax-1)) {
-          listf[[i]] <- nb2listw(Y.rel, style = style, 
+        listf <- vector("list", length(y_fconcdown))
+        count_list <- 1
+        for (i in y_fconcdown) {
+          listf[[count_list]] <- nb2listw(Y.rel, style = style, 
                                  glist = lapply(nbdists(Y.rel, as.matrix(coord)),
-                                                f2, y = i+1, dmax = max.rel))
+                                                f2, y = i, dmax = max.rel))
+          count_list <- count_list + 1
         }
-        names(listf) <- c(2:ymax)
+        names(listf) <- y_fconcdown
         listwcand[[count]] <- listf
         names(listwcand)[count] <- "Relative neighbourhood_Concave down weighting"
       }
       if (fconcup == TRUE) {      
         count <- count + 1
-        listf <- vector("list", ymax-1)
-        for (i in 1:ymax) {
-          listf[[i]] <- nb2listw(Y.rel, style = style, 
+        listf <- vector("list", length(y_fconcup))
+        count_list <- 1
+        for (i in y_fconcup) {
+          listf[[count_list]] <- nb2listw(Y.rel, style = style, 
                                  glist = lapply(nbdists(Y.rel, as.matrix(coord)),
-                                                f3, y = i, dmax = max.rel))
+                                                f3, y = i))
+          count_list <- count_list + 1
         }
-        names(listf) <- c(1:ymax)
+        names(listf) <- y_fconcup
         listwcand[[count]] <- listf
         names(listwcand)[count] <- "Relative neighbourhood_Concave up weighting"
       }
@@ -201,25 +220,29 @@ listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = 
       } 
       if (fconcdown == TRUE) {      
         count <- count + 1
-        listf <- vector("list", ymax-1)
-        for (i in 1:(ymax-1)) {
-          listf[[i]] <- nb2listw(Y.mst, style = style, 
+        listf <- vector("list", length(y_fconcdown))
+        count_list <- 1
+        for (i in y_fconcdown) {
+          listf[[count_list]] <- nb2listw(Y.mst, style = style, 
                                  glist = lapply(nbdists(Y.mst, as.matrix(coord)),
-                                                f2, y = i+1, dmax = max.mst))
+                                                f2, y = i, dmax = max.mst))
+          count_list <- count_list + 1
         }
-        names(listf) <- c(2:ymax)
+        names(listf) <- y_fconcdown
         listwcand[[count]] <- listf
         names(listwcand)[count] <- "Minimum spanning tree_Concave down weighting"
       }
       if (fconcup == TRUE) {      
         count <- count + 1
-        listf <- vector("list", ymax-1)
-        for (i in 1:ymax) {
-          listf[[i]] <- nb2listw(Y.mst, style = style, 
+        listf <- vector("list", length(y_fconcup))
+        count_list <- 1
+        for (i in y_fconcup) {
+          listf[[count_list]] <- nb2listw(Y.mst, style = style, 
                                  glist = lapply(nbdists(Y.mst, as.matrix(coord)),
                                                 f3, y = i, dmax = max.mst))
+          count_list <- count_list + 1
         }
-        names(listf) <- c(1:ymax)
+        names(listf) <- y_fconcup
         listwcand[[count]] <- listf
         names(listwcand)[count] <- "Minimum spanning tree_Concave up weighting"
       }

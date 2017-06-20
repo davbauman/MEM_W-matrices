@@ -52,7 +52,7 @@
 # the same information as described above. 
 
 MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all"), 
-                       alpha_thresh = 0.05)
+                       alpha_thresh = 0.05, correction = TRUE)
 {  
   
    library(vegan)       # Eliminer quand sera dans le package
@@ -68,11 +68,12 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
    # inflate the type I error rate. If the tested W matrix is significant, a model
    # selection is performed using Blanchet et al.'s forward selection with two stopping 
    # criteria.
-   MEM.test <- function (a = x, b, c = autocor, d = nbtest, alpha = alpha_thresh)
+   MEM.test <- function (a = x, b, c = autocor, d = nbtest, alpha = alpha_thresh,
+                         corr = correction)
    {
       pval <- anova.cca(rda(a, b), permutations = 10000)$Pr[1]
-      pval <- 1-(1-pval)^d                   # Sidak correction (nb of MEM model tested) 
-      if (c == "all") pval <- 1-(1-pval)^2   # Sidak correction for autocor = "all" 
+      if (correction == TRUE) pval <- 1-(1-pval)^d    # Sidak correction 
+      if (c == "all") pval <- 1-(1-pval)^2            # Sidak correction (autocor= "all") 
       if (pval <= alpha) {  
          R2adj <- RsquareAdj(rda(a, b))$adj.r.squared
          class <- class(try(fsel <- forward.sel(a, b, adjR2thresh = R2adj, nperm = 999),
@@ -124,7 +125,11 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
 
    # A multitest p-value correction is needed for controling the type-I error rate. 
    # We define the total nb of tests:
-   nbtest <- length(candidates)
+   # ********************************
+   # If we test > 1 W matrix, we have only one class = list. If we test only one W matrix,
+   # we have two classes: listw and nb.
+   if (length(class(candidates)) == 1) nbtest <- length(candidates)
+   else nbtest <- 1
 
    for (h in 1:k) {
 

@@ -86,24 +86,20 @@ colnames(resultsM_sub) <- c("Matrix B", "Matrix A", "Power",
 resultsM_sub[, 1] <- c("sim", "R2_pop", "R2_sub", "pvalReal", "column_count")
 resultsM_sub[5, ] <- c(1:ncol(resultsM_sub))
 
+# Result matrices for the random choice of a W matrix:
+resultsB_popran <- resultsB_pop
+resultsM_popran <- resultsM_pop
+resultsB_subran <- resultsB_sub
+resultsM_subran <- resultsM_sub
+
 # The MEM are built for a full grid (50 x 25 cells):
 # **************************************************
 
 xy <- expand.grid(x = seq(1, 150, 1), y = seq(1, 75, 1))
-# plot(xy, cex = 1)
 
 nb <- cell2nb(nrow = 75, ncol = 150, "queen")
 nb2 <- nb2listw(nb, style = style)
 MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
-
-# xy_attr <- attr(nb, "region.id")
-# XY <- matrix(as.integer(unlist(strsplit(xy_attr, ":"))), ncol = 2, byrow = TRUE)
-# plot(nb, XY)
-
-# To know from where and in which direction the cells are considered when building MEM
-# ************************************************************************************
-# s.label(xy, neig = nb2neig(nb), clab = 0.5)
-
 
 
 
@@ -142,6 +138,9 @@ R2_pop_med <- cor(y_med, y_spa_med_st)^2
 
 resultsB_pop[2, c(1010:2009, 3010:4009)] <- R2_pop_broad
 resultsM_pop[2, c(1010:2009, 3010:4009)] <- R2_pop_med
+
+resultsB_popran[2, c(1010:2009, 3010:4009)] <- R2_pop_broad
+resultsM_popran[2, c(1010:2009, 3010:4009)] <- R2_pop_med
 
 # Begining of the simulation process:
 # ***********************************
@@ -255,6 +254,10 @@ for (i in 1:nperm) {
   R2_sub <- cor(y_sub, y_spa_broad_st[sort])^2                                          
   resultsB_pop[3, c(2009+i, 3009+i)] <- R2_sub
   resultsB_pop[1, 3009+i] <- R2_sub - R2_pop_broad
+  
+  resultsB_popran[4, 9+i] <- lmp(lm)
+  resultsB_popran[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsB_popran[1, 3009+i] <- R2_sub - R2_pop_broad
 
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
@@ -269,6 +272,17 @@ for (i in 1:nperm) {
       resultsB_pop[1, 2009+i] <- memsel$R2adj - R2_sub
       bestmod_indexB[which(bestmod_indexB[, 1] == memsel$name), 2+i] <- 1
    } else resultsB_pop[1, 9+i] <- 1
+   
+   # Random choice of the W matrix:
+   W.ran <- candidates[[sample(c(1:length(candidates)), 1)]]
+   
+   memsel_ran <- MEM.modsel(y_sub, W.ran, autocor = MEM_model)
+   if (class(memsel_ran) != "NULL") {
+     resultsB_popran[1, 9+i] <- memsel_ran$pval
+     resultsB_popran[1, 1009+i] <- memsel_ran$R2adj - R2_pop_broad
+     resultsB_popran[1, 2009+i] <- memsel_ran$R2adj - R2_sub
+   } else resultsB_popran[1, 9+i] <- 1
+   
 }         # End of the simulation ('for') loop
 
 # Median and standard deviation of the deltaR2:

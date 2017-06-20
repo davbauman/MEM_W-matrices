@@ -1,8 +1,8 @@
-################################################################################################################
-# Code for computing the Type I Error Rate of severall spatial weighting matrices (W) obtained by              #
-# combination of different connectivity and weighting matrices, using uni- and multivariate response variables #
-# in a regular and an irregular sampling design.                                                               #
-################################################################################################################
+######################################################################################
+# Code for computing the Type I Error Rate of severall spatial weighting matrices (W) 
+# obtained by combination of different connectivity and weighting matrices, using uni- 
+# and multivariate response variables in a regular and an irregular sampling design.
+######################################################################################
 
 # Useful packages and functions:
 # ******************************
@@ -15,19 +15,17 @@ source("test.W.R2.R")
 
 # Construction of a result matrix:                               
 # ********************************
-
-# For each B matrix, no A matrix and three A matrices tested; Two additional lines for
-# the original PCNM method and for the PCNM method computed through MEM (DBEM, see further).
-# For the columns: lines 3 = type I error; line 4 = mean R2adj; line 5 = sd of the R2adj;
-# 1000 permutations, so that lines 6 to 1005 contain p-values, and lines 1006 to 2005 
-# contain R2adj.
+# For each B matrix, no A matrix and three A matrices tested.
 
 results <- as.data.frame(matrix(nrow = 21, ncol = 2005))
 
 colnames(results) <- c("Matrix B", "Matrix A", "type I error", "mean R2adj", "sd R2adj",
-                       paste("p-val", c(1:1000), sep = ""), paste("R2_", c(1:1000), sep = ""))
-results[,1] <- c(rep(c("del", "gab", "rel", "mst", "DBmin", "DBmed", "DBmax"), each = 4), "DBMEM_PCNM")
-results[,2] <- c(rep(c("None", "Linear", "Concave-down", "Concave-up"), times = 7), "1-(D/4t)^2")
+                       paste("p-val", c(1:1000), sep = ""), paste("R2_", c(1:1000), 
+                                                                  sep = ""))
+results[,1] <- c(rep(c("del", "gab", "rel", "mst", "DBmin", "DBmed", "DBmax"), each = 4),
+                 "DBMEM_PCNM")
+results[,2] <- c(rep(c("None", "Linear", "Concave-down", "Concave-up"), times = 7), 
+                 "1-(D/4t)^2")
 
 # Definition of the simulation parameters:
 ##########################################
@@ -42,7 +40,7 @@ framework <- "univariate"    # "univariate" or "multivariate"
 
 # Sampling design:
 
-design <- "random"   # "random" or "clustered"
+design <- "clustered"   # "random" or "clustered"
 
 nperm <- 1000
 
@@ -122,10 +120,10 @@ Y.listDB <- lapply(thresh, dnearneigh, x = as.matrix(C), d1 = 0)
 
 # Weighting functions and fixed parametres:
 # *****************************************
-f1 <- function (D, dmax)    {1-(D/dmax)}        # Linear function
-f2 <- function (D, dmax, y) {1-(D/dmax)^y}      # Concave-down function
-f3 <- function (D, dmax, y) {1/(D/dmax)^y}      # Concave-up function
-f4 <- function (D, t)       {1-(D/(4*t))^2}     # PCNM criterion
+f1 <- function (D, dmax)    { 1 - (D/dmax) }        # Linear function
+f2 <- function (D, dmax, y) { 1 - (D/dmax)^y }      # Concave-down function
+f3 <- function (D, y)       { 1 / D^y }             # Concave-up function
+f4 <- function (D, t)       { 1 - (D/(4*t))^2 }     # PCNM criterion
 
 max.del <- max(unlist(nbdists(Y.del, as.matrix(C)))) 
 max.gab <- max(unlist(nbdists(Y.gab, as.matrix(C))))
@@ -186,10 +184,10 @@ for (i in 1:nperm) {
   
   if (framework == "univariate") {
     
-    Y <- runif (nrow(C), min = 0, max = 20) ; ran <- "runif"             # Random (uniform)
-    #   Y <- rnorm(nrow(C), mean = 0, sd = runif (1, 1, 3)) ; ran <- "rnorm" # Random (normal)
-    #   Y <- rexp(nrow(C), rate = 1) ; ran <- "rexp"                        # Exponential (1)
-    #   Y <- rexp(nrow(C), rate = 1)^3  ; ran <- "rexp3"                    # Exponential cubed
+    Y <- runif (nrow(C), min = 0, max = 20) ; ran <- "runif"  
+    #   Y <- rnorm(nrow(C), mean = 0, sd = runif (1, 1, 3)) ; ran <- "rnorm" 
+    #   Y <- rexp(nrow(C), rate = 1) ; ran <- "rexp"                       
+    #   Y <- rexp(nrow(C), rate = 1)^3  ; ran <- "rexp3"            
     
   } else {
     
@@ -207,57 +205,55 @@ for (i in 1:nperm) {
   # del:
   # ****
   Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 2:5)
+                            MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 5)
   Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, dmax = max.del, y = 1:5)
+                            MEM.autocor = MEM_model, f = f3, y = 0.5)
   # gab:
   # ****
   Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 2:5)
+                            MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 5)
   Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, dmax = max.gab, y = 1:5)
+                            MEM.autocor = MEM_model, f = f3, y = 0.5)
   # rel:
   # ****
   Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 2:5)
+                            MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 5)
   Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, dmax = max.rel, y = 1:5)
+                            MEM.autocor = MEM_model, f = f3, y = 0.5)
   # mst:
   # ****
   Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 2:5)
+                            MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 5)
   Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, dmax = max.mst, y = 1:5)
+                            MEM.autocor = MEM_model, f = f3, y = 0.5)
   # DB:
   # ***
   Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
                             style = style, MEM.autocor = MEM_model, f = f2, 
-                            dmax = max.DB.list[[1]], y = 2:5)
+                            dmax = max.DB.list[[1]], y = 5)
   Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[1]],
-                            y = 1:5)
+                            MEM.autocor = MEM_model, f = f3, y = 0.5)
   
   Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[2]], 
-                            y = 2:5)
+                            y = 5)
   Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[2]],
-                            y = 1:5)
+                            MEM.autocor = MEM_model, f = f3, y = 0.5)
   
   Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
                             MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[3]], 
-                            y = 2:5)
+                            y = 5)
   Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, dmax = max.DB.list[[3]],
-                            y = 1:5)
+                            MEM.autocor = MEM_model, f = f3, y = 0.5)
   
-  # Significance test and MEM variable selection (forward selection with double stopping criterion):
-  # ************************************************************************************************
+  # Significance test and MEM variable selection:
+  # *********************************************
   
   # del
   R2adj <- RsquareAdj(rda(Y, Y.del.MEM$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.del.MEM$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.del.MEM$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.del.MEM$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.del.MEM$best$MEM[, c(sign)]
@@ -269,7 +265,8 @@ for (i in 1:nperm) {
     }  
   R2adj <- RsquareAdj(rda(Y, Y.del.MEM.f1$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.del.MEM.f1$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.del.MEM.f1$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.del.MEM.f1$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.del.MEM.f1$best$MEM[, c(sign)]
@@ -281,7 +278,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.del.MEM.f2$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.del.MEM.f2$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.del.MEM.f2$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.del.MEM.f2$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.del.MEM.f2$best$MEM[, c(sign)]
@@ -293,7 +291,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.del.MEM.f3$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.del.MEM.f3$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.del.MEM.f3$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.del.MEM.f3$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.del.MEM.f3$best$MEM[, c(sign)]
@@ -307,7 +306,8 @@ for (i in 1:nperm) {
   # gab
   R2adj <- RsquareAdj(rda(Y, Y.gab.MEM$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.gab.MEM$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.gab.MEM$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.gab.MEM$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.gab.MEM$best$MEM[, c(sign)]
@@ -319,7 +319,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.gab.MEM.f1$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.gab.MEM.f1$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.gab.MEM.f1$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.gab.MEM.f1$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.gab.MEM.f1$best$MEM[, c(sign)]
@@ -331,7 +332,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.gab.MEM.f2$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.gab.MEM.f2$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.gab.MEM.f2$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.gab.MEM.f2$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.gab.MEM.f2$best$MEM[, c(sign)]
@@ -343,7 +345,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.gab.MEM.f3$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.gab.MEM.f3$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.gab.MEM.f3$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.gab.MEM.f3$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.gab.MEM.f3$best$MEM[, c(sign)]
@@ -357,7 +360,8 @@ for (i in 1:nperm) {
   # rel
   R2adj <- RsquareAdj(rda(Y, Y.rel.MEM$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.rel.MEM$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.rel.MEM$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.rel.MEM$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.rel.MEM$best$MEM[, c(sign)]
@@ -369,7 +373,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.rel.MEM.f1$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.rel.MEM.f1$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.rel.MEM.f1$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.rel.MEM.f1$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.rel.MEM.f1$best$MEM[, c(sign)]
@@ -381,7 +386,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.rel.MEM.f2$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.rel.MEM.f2$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.rel.MEM.f2$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.rel.MEM.f2$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.rel.MEM.f2$best$MEM[, c(sign)]
@@ -393,7 +399,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.rel.MEM.f3$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.rel.MEM.f3$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.rel.MEM.f3$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.rel.MEM.f3$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.rel.MEM.f3$best$MEM[, c(sign)]
@@ -407,7 +414,8 @@ for (i in 1:nperm) {
   # mst
   R2adj <- RsquareAdj(rda(Y, Y.mst.MEM$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.mst.MEM$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.mst.MEM$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.mst.MEM$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.mst.MEM$best$MEM[, c(sign)]
@@ -419,7 +427,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.mst.MEM.f1$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.mst.MEM.f1$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.mst.MEM.f1$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.mst.MEM.f1$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.mst.MEM.f1$best$MEM[, c(sign)]
@@ -431,7 +440,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.mst.MEM.f2$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.mst.MEM.f2$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.mst.MEM.f2$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.mst.MEM.f2$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.mst.MEM.f2$best$MEM[, c(sign)]
@@ -443,7 +453,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.mst.MEM.f3$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.mst.MEM.f3$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.mst.MEM.f3$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.mst.MEM.f3$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.mst.MEM.f3$best$MEM[, c(sign)]
@@ -457,7 +468,8 @@ for (i in 1:nperm) {
   # DBmin
   R2adj <- RsquareAdj(rda(Y, Y.DB1.MEM$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB1.MEM$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB1.MEM$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB1.MEM$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB1.MEM$best$MEM[, c(sign)]
@@ -469,7 +481,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.DB1.MEM.f1$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB1.MEM.f1$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB1.MEM.f1$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB1.MEM.f1$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB1.MEM.f1$best$MEM[, c(sign)]
@@ -481,7 +494,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.DB1.MEM.f2$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB1.MEM.f2$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB1.MEM.f2$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB1.MEM.f2$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB1.MEM.f2$best$MEM[, c(sign)]
@@ -493,7 +507,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.DB1.MEM.f3$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB1.MEM.f3$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB1.MEM.f3$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB1.MEM.f3$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB1.MEM.f3$best$MEM[, c(sign)]
@@ -507,7 +522,8 @@ for (i in 1:nperm) {
   # DBmin
   R2adj <- RsquareAdj(rda(Y, Y.DB2.MEM$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB2.MEM$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB2.MEM$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB2.MEM$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB2.MEM$best$MEM[, c(sign)]
@@ -519,7 +535,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.DB2.MEM.f1$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB2.MEM.f1$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB2.MEM.f1$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB2.MEM.f1$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB2.MEM.f1$best$MEM[, c(sign)]
@@ -531,7 +548,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.DB2.MEM.f2$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB2.MEM.f2$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB2.MEM.f2$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB2.MEM.f2$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB2.MEM.f2$best$MEM[, c(sign)]
@@ -543,7 +561,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.DB2.MEM.f3$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB2.MEM.f3$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB2.MEM.f3$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB2.MEM.f3$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB2.MEM.f3$best$MEM[, c(sign)]
@@ -557,7 +576,8 @@ for (i in 1:nperm) {
   # DBmin
   R2adj <- RsquareAdj(rda(Y, Y.DB3.MEM$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB3.MEM$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB3.MEM$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB3.MEM$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB3.MEM$best$MEM[, c(sign)]
@@ -569,7 +589,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.DB3.MEM.f1$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB3.MEM.f1$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB3.MEM.f1$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB3.MEM.f1$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB3.MEM.f1$best$MEM[, c(sign)]
@@ -581,7 +602,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.DB3.MEM.f2$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB3.MEM.f2$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB3.MEM.f2$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB3.MEM.f2$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB3.MEM.f2$best$MEM[, c(sign)]
@@ -593,7 +615,8 @@ for (i in 1:nperm) {
     }
   R2adj <- RsquareAdj(rda(Y, Y.DB3.MEM.f3$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB3.MEM.f3$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB3.MEM.f3$best$MEM, adjR2thresh = R2adj, nperm = 999), TRUE))
+    class <- class(try(fsel <- forward.sel(Y, Y.DB3.MEM.f3$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999), TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
       MEM.FwdSel <- Y.DB3.MEM.f3$best$MEM[, c(sign)]
@@ -607,7 +630,8 @@ for (i in 1:nperm) {
   # DBMEM (with PCNM criteria: B = give.thresh(xy.d1) and A = f4)
   R2adj <- RsquareAdj(rda(Y, Y.DB.PCNM$best$MEM))$adj.r.squared
   if (anova.cca(rda(Y, Y.DB.PCNM$best$MEM))$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(Y, Y.DB.PCNM$best$MEM, adjR2thresh = R2adj, nperm = 999),
+    class <- class(try(fsel <- forward.sel(Y, Y.DB.PCNM$best$MEM, adjR2thresh = R2adj, 
+                                           nperm = 999),
                        TRUE))
     if (class != "try-error") {
       sign <- sort(fsel$order)
