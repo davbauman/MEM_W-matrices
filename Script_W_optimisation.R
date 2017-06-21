@@ -1,7 +1,7 @@
 ################################################################
 ### ****************** Test of MEM.modsel ****************** ###
 
-# rm(list=ls())
+rm(list=ls()[-match(c("xy", "nb", "nb2", "nb2_backup", "MEM", "MEM_backup"), ls())])
 
 # Usefull packages and functions:
 # *******************************
