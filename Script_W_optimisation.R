@@ -11,7 +11,6 @@ library(adespatial)
 library(spdep)
 
 source("lmp.R")
-source("test.W.R2.R") 
 source("listw.candidates.R")
 source("MEM.modsel.R")
 
