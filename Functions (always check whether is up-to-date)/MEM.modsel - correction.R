@@ -52,7 +52,7 @@
 # the same information as described above. 
 
 MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all"), 
-                       alpha_thresh = 0.05)
+                       alpha_thresh = 0.05, correction = TRUE)
 {  
   
    library(vegan)       # Eliminer quand sera dans le package
@@ -68,11 +68,12 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
    # inflate the type I error rate. If the tested W matrix is significant, a model
    # selection is performed using Blanchet et al.'s forward selection with two stopping 
    # criteria.
-   MEM.test <- function (a = x, b, c = autocor, d = nbtest, alpha = alpha_thresh)
+   MEM.test <- function (a = x, b, c = autocor, d = nbtest, alpha = alpha_thresh,
+                         corr = correction)
    {
       pval <- anova.cca(rda(a, b), permutations = 10000)$Pr[1]
-      pval <- 1-(1-pval)^d                   # Sidak correction (nb of MEM model tested) 
-      if (c == "all") pval <- 1-(1-pval)^2   # Sidak correction for autocor = "all" 
+      if (correction == TRUE) pval <- 1-(1-pval)^d    # Sidak correction 
+      if (c == "all") pval <- 1-(1-pval)^2            # Sidak correction (autocor= "all") 
       if (pval <= alpha) {  
          R2adj <- RsquareAdj(rda(a, b))$adj.r.squared
          class <- class(try(fsel <- forward.sel(a, b, adjR2thresh = R2adj, nperm = 999),
@@ -88,24 +89,6 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
    }                                                  # End of the MEM.test() function
    # **********************************************************************************
 
-   # **********************************************************************************
-   # Function aiming at choosing the weighting function parameter that maximises the 
-   # R2adj. The function returns 1) the complete W matrix corresponding to the best 
-   # value and 2) the index of the selected parameter value (e.g., 'y' varies from
-   # 5 to 9 and y = 6 is selected, then the function returns y = 2, that is, the index).
-   chooseparam <- function (x = x, lw) 
-   {
-     listw <- vector("list", length(lw))
-     listR2 <- vector("numeric", length(lw))
-     for (i in 1:length(listw)) {
-       listw[[i]] <- scores.listw(lw[[i]], MEM.autocor = cor[h])
-       listR2[i] <- RsquareAdj(rda(x, listw[[i]]))$adj.r.squared
-     }
-     best <- which.max(listR2)
-     list(W = listw[[best]], y_index = best)
-   }                                                # End of the chooseparam() function
-   # **********************************************************************************
-   
    autocor <- match.arg(autocor) 
 
    # Since the loop is entered only once if autocor = "positive" or "negative" 
@@ -124,7 +107,11 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
 
    # A multitest p-value correction is needed for controling the type-I error rate. 
    # We define the total nb of tests:
-   nbtest <- length(candidates)
+   # ********************************
+   # If we test > 1 W matrix, we have only one class = list. If we test only one W matrix,
+   # we have two classes: listw and nb.
+   if (length(class(candidates)) == 1) nbtest <- length(candidates)
+   else nbtest <- 1
 
    for (h in 1:k) {
 
@@ -143,26 +130,10 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
       param <- rep("NA", nbtest)
       
       for (q in 1:nbtest) {
-        # If length(candidates[[q]]) > 3, we have a list in the candidates list, 
-        # meaning that severall W matrices were build on the basis of a single set of
-        # connectivity and weighting matrices. This occurs when different parameters of
-        # a weighting functions are tested. If this case, the length of candidates[[q]]
-        # corresponds to the number of parameters tested. One parameter value has to be 
-        # chosen based on the global R2adj: the corresponding W matrix is then tested 
-        # using MEM.test(). 
-        # If length == 3, we only have a listw object in candidates[[q]] and the length
-        # of 3 corresponds to "style", "neighbours", and "weights". We only have one 
-        # weighted list that can be directly tested.
-        if (length(candidates[[q]]) == 3) {
-          W <- scores.listw(candidates[[q]], MEM.autocor = cor[h])
+          if (nbtest > 1) W <- scores.listw(candidates[[q]], MEM.autocor = cor[h])
+          else W <- scores.listw(candidates, MEM.autocor = cor[h])
           listW[[q]] <- W
           listtest[[q]] <- MEM.test(x, W)
-        } else {
-          bestparam <- chooseparam(x = x, lw = candidates[[q]])
-          listW[[q]] <- bestparam$W
-          param[q] <- bestparam$y_index
-          listtest[[q]] <- MEM.test(x, W)
-        }
       }
       # Save the results in order to compare them and choose the best model:
       for (i in 1:nbtest) {
@@ -214,12 +185,9 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
          ") and best negative (corrected p-value = ", round(L2$pval, 5), ",", "\n", 
          "R2adj of the selected MEM variables = ", round(L2$R2adj, 3), ")", 
          "MEM models were selected.", "\n", 
-         "The corresponding spatial weighting W matrices are ", 
-         L1$name, " (parameter_index = ", L1$param_index, ")", "\n", " and ", 
-         L2$name, " (parameter_index = ", L2$param_index, ")", ", respectively.", "\n",
          "*****************************************************", "\n",
          "*****************************************************", "\n",
-         "The output of the function is a list of two lists (MEM.pos and MEM.neg).",
+         "The output of the function is a list of two lists (MEM.pos and MEM.neg).", "\n",
          sep = "")
      list(MEM.pos = L1, MEM.neg = L2)
    } else 
@@ -230,8 +198,6 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
            "A best ", lenlist, " MEM model was selected (corrected p-value = ", 
            round(L$pval, 5), ", R2adj of the selected", "\n",  "MEM variables = ", 
            round(L$R2adj, 3), ").", "\n", 
-           "The corresponding spatial weighting W matrix is ", 
-           L$name, "\n", "(parameter_index = ", L$param_index, ").", "\n",
            "*****************************************************", "\n",
            "*****************************************************", "\n", sep = "")
        list(MEM.all = L$MEM.all, MEM.select = L$MEM.select, 
@@ -239,7 +205,7 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
             pval = L$pval, R2adj = L$R2adj, NbVar = L$NbVar, bestw_index = L$bestw_index)
      } else cat("\n", "\n", "*****************************************************", 
                 "\n", "*****************************************************", "\n",
-                "No significant spatial structure was detected in the data.", "\n",
+                "No significant spatial structure could be detected in the data.", "\n",
                 "\n", sep = "")   
 }
 
