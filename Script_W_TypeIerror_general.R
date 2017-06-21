@@ -17,7 +17,7 @@ source("test.W.R2.R")
 # ********************************
 # For each B matrix, no A matrix and three A matrices tested.
 
-results <- as.data.frame(matrix(nrow = 21, ncol = 2005))
+results <- as.data.frame(matrix(nrow = 29, ncol = 2005))
 
 colnames(results) <- c("Matrix B", "Matrix A", "type I error", "mean R2adj", "sd R2adj",
                        paste("p-val", c(1:1000), sep = ""), paste("R2_", c(1:1000), 
@@ -177,6 +177,7 @@ Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = s
 
 # Simulation procedure:
 #######################
+go <- Sys.time()
 
 for (i in 1:nperm) {   
   
@@ -655,6 +656,8 @@ for (i in 1:nrow(results)) {
   results[i, 5] <- sd(na.omit(as.numeric(results[i, c(1006:(nperm + 1005))])))
 }
 
+stop <- Sys.time()
+(diff <- stop - go)
 # Output of the results:
 # **********************
 

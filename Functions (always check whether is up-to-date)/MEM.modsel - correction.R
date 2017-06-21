@@ -130,7 +130,8 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
       param <- rep("NA", nbtest)
       
       for (q in 1:nbtest) {
-          W <- scores.listw(candidates[[q]], MEM.autocor = cor[h])
+          if (nbtest > 1) W <- scores.listw(candidates[[q]], MEM.autocor = cor[h])
+          else W <- scores.listw(candidates, MEM.autocor = cor[h])
           listW[[q]] <- W
           listtest[[q]] <- MEM.test(x, W)
       }
@@ -184,12 +185,9 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
          ") and best negative (corrected p-value = ", round(L2$pval, 5), ",", "\n", 
          "R2adj of the selected MEM variables = ", round(L2$R2adj, 3), ")", 
          "MEM models were selected.", "\n", 
-         "The corresponding spatial weighting W matrices are ", 
-         L1$name, " (parameter_index = ", L1$param_index, ")", "\n", " and ", 
-         L2$name, " (parameter_index = ", L2$param_index, ")", ", respectively.", "\n",
          "*****************************************************", "\n",
          "*****************************************************", "\n",
-         "The output of the function is a list of two lists (MEM.pos and MEM.neg).",
+         "The output of the function is a list of two lists (MEM.pos and MEM.neg).", "\n",
          sep = "")
      list(MEM.pos = L1, MEM.neg = L2)
    } else 
@@ -200,8 +198,6 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
            "A best ", lenlist, " MEM model was selected (corrected p-value = ", 
            round(L$pval, 5), ", R2adj of the selected", "\n",  "MEM variables = ", 
            round(L$R2adj, 3), ").", "\n", 
-           "The corresponding spatial weighting W matrix is ", 
-           L$name, "\n", "(parameter_index = ", L$param_index, ").", "\n",
            "*****************************************************", "\n",
            "*****************************************************", "\n", sep = "")
        list(MEM.all = L$MEM.all, MEM.select = L$MEM.select, 
@@ -209,7 +205,7 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
             pval = L$pval, R2adj = L$R2adj, NbVar = L$NbVar, bestw_index = L$bestw_index)
      } else cat("\n", "\n", "*****************************************************", 
                 "\n", "*****************************************************", "\n",
-                "No significant spatial structure was detected in the data.", "\n",
+                "No significant spatial structure could be detected in the data.", "\n",
                 "\n", sep = "")   
 }
 
