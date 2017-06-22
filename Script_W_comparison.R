@@ -36,7 +36,7 @@ nperm <- 1000
 a <- 0.55   # 0.35 or 0.55
 if (a < 0.5) intensity = "Weak" else intensity = "Strong"
 
-style <- "B"             # Either "B" or "W"
+style <- "W"             # Either "B" or "W"
 
 # Construction of the results matrices :
 # **************************************
@@ -971,20 +971,20 @@ if (anova.cca(rda(y_sub, Y.DB.PCNM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
 # Summary of the results:
 # ***********************
 
-for (i in 1:(nrow(resultsB_pop)-1)) {
-  resultsB_pop[i, 3] <- length(which(resultsB_pop[i, c(10:(nperm + 9))] 
+for (j in 1:(nrow(resultsB_pop)-1)) {
+  resultsB_pop[j, 3] <- length(which(resultsB_pop[j, c(10:(nperm + 9))] 
                                      <= 0.05)) / nperm
-  resultsB_pop[i, 4] <- median(na.omit(as.numeric(resultsB_pop[i, c(1010:(nperm + 
+  resultsB_pop[j, 4] <- median(na.omit(as.numeric(resultsB_pop[j, c(1010:(nperm + 
                                                                             1009))])))
-  resultsB_pop[i, 5] <- sd(na.omit(as.numeric(resultsB_pop[i, c(1010:(nperm + 
+  resultsB_pop[j, 5] <- sd(na.omit(as.numeric(resultsB_pop[j, c(1010:(nperm + 
                                                                         1009))])))
-  resultsB_pop[i, 6] <- median(na.omit(as.numeric(resultsB_pop[i, c(2010:(nperm + 
+  resultsB_pop[j, 6] <- median(na.omit(as.numeric(resultsB_pop[j, c(2010:(nperm + 
                                                                             2009))])))
-  resultsB_pop[i, 7] <- sd(na.omit(as.numeric(resultsB_pop[i, c(2010:(nperm + 
+  resultsB_pop[j, 7] <- sd(na.omit(as.numeric(resultsB_pop[j, c(2010:(nperm + 
                                                                         2009))])))
-  resultsB_pop[i, 8] <- median(na.omit(as.numeric(resultsB_pop[i, c(3010:(nperm + 
+  resultsB_pop[j, 8] <- median(na.omit(as.numeric(resultsB_pop[j, c(3010:(nperm + 
                                                                             3009))])))
-  resultsB_pop[i, 9] <- sd(na.omit(as.numeric(resultsB_pop[i, c(3010:(nperm + 
+  resultsB_pop[j, 9] <- sd(na.omit(as.numeric(resultsB_pop[j, c(3010:(nperm + 
                                                                         3009))])))
 }
 
