@@ -71,21 +71,21 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
    MEM.test <- function (a = x, b, c = autocor, d = nbtest, alpha = alpha_thresh,
                          corr = correction)
    {
-      pval <- anova.cca(rda(a, b), permutations = 10000)$Pr[1]
-      if (correction == TRUE) pval <- 1-(1-pval)^d    # Sidak correction 
-      if (c == "all") pval <- 1-(1-pval)^2            # Sidak correction (autocor= "all") 
-      if (pval <= alpha) {  
-         R2adj <- RsquareAdj(rda(a, b))$adj.r.squared
-         class <- class(try(fsel <- forward.sel(a, b, adjR2thresh = R2adj, nperm = 999),
+     pval <- anova.cca(rda(a, b), permutations = 10000)$Pr[1]
+     if (correction == TRUE) pval <- 1-(1-pval)^d    # Sidak correction 
+     if (c == "all") pval <- 1-(1-pval)^2            # Sidak correction (autocor= "all") 
+     if (pval <= alpha) {  
+       R2adj <- RsquareAdj(rda(a, b))$adj.r.squared
+       class <- class(try(fsel <- forward.sel(a, b, adjR2thresh = R2adj, nperm = 999),
                             TRUE))
-         if (class != "try-error") { 
-            sign <- sort(fsel$order)
-            MEM.select <- b[, c(sign)] 
-            list(MEM.select = MEM.select, NbVar = length(sign), pval = pval, 
-               R2adj = RsquareAdj(rda(a, MEM.select))$adj.r.squared, 
-               AdjR2Cum = fsel$AdjR2Cum)
-            } 
-      } else return(NA)
+       if (class != "try-error") { 
+         sign <- sort(fsel$order)
+         MEM.select <- b[, c(sign)] 
+         list(MEM.select = MEM.select, NbVar = length(sign), pval = pval, 
+              R2adj = RsquareAdj(rda(a, MEM.select))$adj.r.squared, 
+              AdjR2Cum = fsel$AdjR2Cum)
+       } else return(NA)
+     } else return(NA)
    }                                                  # End of the MEM.test() function
    # **********************************************************************************
 
