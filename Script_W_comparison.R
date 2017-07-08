@@ -36,7 +36,7 @@ nperm <- 1000
 a <- 0.55   # 0.35 or 0.55
 if (a < 0.5) intensity = "Weak" else intensity = "Strong"
 
-style <- "W"             # Either "B" or "W"
+style <- "B"             # Either "B" or "W"
 
 # Construction of the results matrices :
 # **************************************
@@ -278,10 +278,10 @@ y_sub <- y_broad[sort]
 # Real p-value and R2_sub:
 # ************************
 lm <- lm(y_sub ~ MEMsub)
-resultsB_pop[4, 9+i] <- lmp(lm)
+resultsB_pop[32, 9+i] <- lmp(lm)
 R2_sub <- cor(y_sub, y_spa_broad_st[sort])^2                                          
-resultsB_pop[3, c(2009+i, 3009+i)] <- R2_sub
-resultsB_pop[1, 3009+i] <- R2_sub - R2_pop_broad
+resultsB_pop[31, c(2009+i, 3009+i)] <- R2_sub
+resultsB_pop[c(1:29), 3009+i] <- as.numeric(R2_sub - R2_pop_broad)
 
 # Visualisation:
 # **************
@@ -1018,10 +1018,10 @@ for (i in 1:nperm) {
   # Real p-value and R2_sub:
   # ************************
   lm <- lm(y_sub ~ MEMsub)
-  resultsM_pop[4, 9+i] <- lmp(lm)
-  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2     
-  resultsM_pop[3, c(2009+i, 3009+i)] <- R2_sub
-  resultsM_pop[1, 3009+i] <- R2_sub - R2_pop_med
+  resultsM_pop[32, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2                                          
+  resultsM_pop[31, c(2009+i, 3009+i)] <- R2_sub
+  resultsM_pop[c(1:29), 3009+i] <- as.numeric(R2_sub - R2_pop_med)
   
   # Construction of the different W matrices:
   # #########################################
@@ -1906,10 +1906,10 @@ for (i in 1:nperm) {
   # Real p-value and R2_sub:
   # ************************
   lm <- lm(y_sub ~ MEMsub)
-  resultsB_sub[4, 9+i] <- lmp(lm)
-  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2                                          
-  resultsB_sub[3, c(2009+i, 3009+i)] <- R2_sub
-  resultsB_sub[1, 3009+i] <- R2_sub - R2_pop_broad
+  resultsB_sub[32, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_broad_st[sort])^2                                          
+  resultsB_sub[31, c(2009+i, 3009+i)] <- R2_sub
+  resultsB_sub[c(1:29), 3009+i] <- as.numeric(R2_sub - R2_pop_broad)
   
   # Generation of the remaining W matrices (with concdown and concup functions):
   # ****************************************************************************
@@ -2588,10 +2588,10 @@ for (i in 1:nperm) {
   # Real p-value and R2_sub:
   # ************************
   lm <- lm(y_sub ~ MEMsub)
-  resultsM_sub[4, 9+i] <- lmp(lm)
-  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2     
-  resultsM_sub[3, c(2009+i, 3009+i)] <- R2_sub
-  resultsM_sub[1, 3009+i] <- R2_sub - R2_pop_med
+  resultsM_sub[32, 9+i] <- lmp(lm)
+  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2                                          
+  resultsM_sub[31, c(2009+i, 3009+i)] <- R2_sub
+  resultsM_sub[c(1:29), 3009+i] <- as.numeric(R2_sub - R2_pop_med)
   
   # Generation of the remaining W matrices (with concdown and concup functions):
   # ****************************************************************************
