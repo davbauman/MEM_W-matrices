@@ -115,8 +115,8 @@ Y.mst <- mst.nb(xy.d1)
 # Distance-based B (radius around points):
 lowlim <- give.thresh(xy.d1)
 uplim <- max(xy.d1)
-thresh <- seq(lowlim, uplim, le = 3)   # 3 tested distances
-Y.listDB <- lapply(thresh, dnearneigh, x = as.matrix(C), d1 = 0)
+thresh <- seq(lowlim, uplim, le = 10)   # 3 tested distances: thresh[1, 5, 9]
+Y.listDB <- lapply(thresh[c(1, 5, 10)], dnearneigh, x = as.matrix(C), d1 = 0)
 
 # Weighting functions and fixed parametres:
 # *****************************************
@@ -177,7 +177,6 @@ Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = s
 
 # Simulation procedure:
 #######################
-go <- Sys.time()
 
 for (i in 1:nperm) {   
   
@@ -656,8 +655,6 @@ for (i in 1:nrow(results)) {
   results[i, 5] <- sd(na.omit(as.numeric(results[i, c(1006:(nperm + 1005))])))
 }
 
-stop <- Sys.time()
-(diff <- stop - go)
 # Output of the results:
 # **********************
 
