@@ -1037,8 +1037,8 @@ for (i in 1:nperm) {
   # Distance-based B (radius around points):
   lowlim <- give.thresh(xy.d1)
   uplim <- max(xy.d1)
-  thresh <- seq(lowlim, uplim, le = 3)   # 3 tested distances
-  Y.listDB <- lapply(thresh, dnearneigh, x = as.matrix(C), d1 = 0)
+  thresh <- seq(lowlim, uplim, le = 10)   # 3 tested distances
+  Y.listDB <- lapply(thresh[c(1, 5, 9)], dnearneigh, x = as.matrix(C), d1 = 0)
   
   max.del <- max(unlist(nbdists(Y.del, as.matrix(C)))) 
   max.gab <- max(unlist(nbdists(Y.gab, as.matrix(C))))
@@ -1816,8 +1816,8 @@ Y.mst <- mst.nb(xy.d1)
 # Distance-based B (radius around points):
 lowlim <- give.thresh(xy.d1)
 uplim <- max(xy.d1)
-thresh <- seq(lowlim, uplim, le = 3)   # 3 tested distances
-Y.listDB <- lapply(thresh, dnearneigh, x = as.matrix(C), d1 = 0)
+thresh <- seq(lowlim, uplim, le = 10)   # 3 tested distances
+Y.listDB <- lapply(thresh[c(1, 5, 9)], dnearneigh, x = as.matrix(C), d1 = 0)
 
 # Weighting functions and fixed parametres:
 # *****************************************
