@@ -71,7 +71,7 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
    MEM.test <- function (a = x, b, c = autocor, d = nbtest, alpha = alpha_thresh,
                          corr = correction)
    {
-     pval <- anova.cca(rda(a, b), permutations = 10000)$Pr[1]
+     pval <- anova.cca(rda(a, b), permutations = 9999)$Pr[1]
      if (correction == TRUE) pval <- 1-(1-pval)^d    # Sidak correction 
      if (c == "all") pval <- 1-(1-pval)^2            # Sidak correction (autocor= "all") 
      if (pval <= alpha) {  
@@ -210,4 +210,4 @@ MEM.modsel <- function(x, candidates, autocor = c("positive", "negative", "all")
 }
 
 # Written by:
-# David Bauman, in Bauman et al. (2017)
+# David Bauman, in Bauman et al. (2018)

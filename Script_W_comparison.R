@@ -20,32 +20,29 @@ library(spdep)
 
 source("lmp.R")
 source("test.W.R2.R")
-# Function to compute the global test and FwdSel on the MEM variables:
+# Function to compute the global test and FwdSel on the MEM variables (for power and accuracy):
 MEMfwd.test <- function (y, mem) {
-  if (anova.cca(rda(y, mem), permutations = 9999)$Pr[1] <= 0.05) {
+  pval <- as.data.frame(anova.cca(rda(y, mem), permutations = 9999))$Pr[1]
+  if (pval <= 0.05) {
     R2adj <- RsquareAdj(rda(y, mem))$adj.r.squared
     class <- class(try(fsel <- forward.sel(y, mem, adjR2thresh = R2adj, nperm = 999), TRUE))
     if(class != "try-error"){
       sign <- sort(fsel$order)
       MEM.FwdSel <- mem[, c(sign)]
       R2_W <- RsquareAdj(rda(y, MEM.FwdSel))$adj.r.squared
-      pval <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                      permutations = 9999))$Pr[1]
       delta_pop <- R2_W - R2_pop_broad
       delta_sub <- R2_W - R2_sub
     } else { 
-      R2_W <- NA
       pval <- 1      
       delta_pop <- NA
       delta_sub <- NA
     }
   } else { 
-    R2_W <- NA
     pval <- 1      
     delta_pop <- NA
     delta_sub <- NA
   }
-  list(R2_W = R2_W, pval = pval, delta_pop = delta_pop, delta_sub = delta_sub)
+  list(pval = pval, delta_pop = delta_pop, delta_sub = delta_sub)
 }
 
 # Definition of the simulation parameters:

@@ -2,7 +2,7 @@
 # l'élément liste (v. listw.candidates)
 
 # *********************************************************************************** #
-listw.candidates <- function (coord, style = "W", del = TRUE, gab = TRUE, rel = TRUE, 
+listw.candidates <- function (coord, style = "B", del = TRUE, gab = TRUE, rel = TRUE, 
                              mst = TRUE, PCNM = TRUE,  DB = FALSE, DBthresh = 0, 
                              binary = TRUE, flin = TRUE, fconcdown = TRUE, 
                              fconcup = TRUE, y_fconcdown = 5, y_fconcup = 0.5)
