@@ -6,7 +6,6 @@
 
 # Useful packages and functions:
 # ******************************
-
 library(vegan)
 library(adespatial)
 library(spdep)
@@ -33,6 +32,19 @@ MEMfwd.test <- function (y, mem) {
   list(pval = pval, R2_W = R2_W)
 }
 
+# Definition of the simulation parameters:
+##########################################
+
+# Define if we want positive, negative or all eigenvectors
+MEM_model = "positive"
+
+# Sampling design:
+design <- "clustered"   # "random" or "clustered"
+
+style <- "B"                  # Either "B" or "W"
+
+nperm <- 1000
+
 # Construction of a result matrix:                               
 # ********************************
 # For each B matrix, no A matrix (binary) and three A matrices tested.
@@ -46,19 +58,6 @@ results[,1] <- c(rep(c("del", "gab", "rel", "mst", "DBmin", "DBmed", "DBmax"), e
                  "DBMEM_PCNM")
 results[,2] <- c(rep(c("None", "Linear", "Concave-down", "Concave-up"), times = 7), 
                  "1-(D/4t)^2")
-
-# Definition of the simulation parameters:
-##########################################
-
-# Define if we want positive, negative or all eigenvectors
-MEM_model = "positive"
-
-# Sampling design:
-design <- "clustered"   # "random" or "clustered"
-
-style <- "B"                  # Either "B" or "W"
-
-nperm <- 1000
 
 # Generation of the 117 quadrats:
 #################################
@@ -236,7 +235,6 @@ for (i in 1:nrow(results)) {
 
 # Output of the results:
 # **********************
-
-res_file_name <- paste("Results_tIerror_general", framework, ran,
+res_file_name <- paste("Results_tIerror_general", ran,
                        paste(design, ".txt", sep = ""), sep = "_")
 write.table(results, file = res_file_name, sep = "\t")

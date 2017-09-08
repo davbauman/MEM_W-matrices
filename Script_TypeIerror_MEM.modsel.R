@@ -9,7 +9,6 @@ rm(list=ls()[-match(c("xy", "nb", "nb2", "MEM", "MEM_backup"), ls())])
 
 # Usefull packages and functions:
 # *******************************
-
 library(vegan)
 library(adespatial)
 library(spdep)
@@ -120,7 +119,6 @@ for (i in 1:nperm) {
 
 # Output of the results:
 # **********************
-
-res_file_name <- paste("Results_tIerror_MEM.modsel", correction, framework, ran, 
+res_file_name <- paste("Results_tIerror_MEM.modsel", correction, ran, 
                        paste(design, ".txt", sep = ""), sep = "_")
 write.table(results, file = res_file_name, sep = "\t")
