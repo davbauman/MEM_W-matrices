@@ -8,7 +8,7 @@
 ###################### et de l'échantillon réel. ##############################
 # *************************************************************************** #
 
-rm(list=ls()[-match(c("xy", "nb", "nb2", "nb2_backup", "MEM", "MEM_backup"), ls())])
+rm(list=ls()[-match(c("xy", "nb", "nb2", "MEM", "MEM_backup"), ls())])
 
 # Usefull packages and functions:
 # *******************************
@@ -19,7 +19,34 @@ library(adespatial)
 library(spdep)
 
 source("lmp.R")
-source("test.W.R2.R") 
+source("test.W.R2.R")
+# Function to compute the global test and FwdSel on the MEM variables:
+MEMfwd.test <- function (y, mem) {
+  if (anova.cca(rda(y, mem), permutations = 9999)$Pr[1] <= 0.05) {
+    R2adj <- RsquareAdj(rda(y, mem))$adj.r.squared
+    class <- class(try(fsel <- forward.sel(y, mem, adjR2thresh = R2adj, nperm = 999), TRUE))
+    if(class != "try-error"){
+      sign <- sort(fsel$order)
+      MEM.FwdSel <- mem[, c(sign)]
+      R2_W <- RsquareAdj(rda(y, MEM.FwdSel))$adj.r.squared
+      pval <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
+                                      permutations = 9999))$Pr[1]
+      delta_pop <- R2_W - R2_pop_broad
+      delta_sub <- R2_W - R2_sub
+    } else { 
+      R2_W <- NA
+      pval <- 1      
+      delta_pop <- NA
+      delta_sub <- NA
+    }
+  } else { 
+    R2_W <- NA
+    pval <- 1      
+    delta_pop <- NA
+    delta_sub <- NA
+  }
+  list(R2_W = R2_W, pval = pval, delta_pop = delta_pop, delta_sub = delta_sub)
+}
 
 # Definition of the simulation parameters:
 # ****************************************
@@ -33,7 +60,7 @@ design <- "clustered"    # Either "clustered" or "random"
 nperm <- 1000
 
 # Structuring Intensity (low or high):
-a <- 0.55   # 0.35 or 0.55
+a <- 0.35   # 0.35 or 0.55
 if (a < 0.5) intensity = "Weak" else intensity = "Strong"
 
 style <- "B"             # Either "B" or "W"
@@ -116,10 +143,9 @@ resultsM_sub[33, ] <- c(1:ncol(resultsM_sub))
 # The MEM are built for a full grid (50 x 25 cells):
 # **************************************************
 
-xy <- expand.grid(x = seq(1, 150, 1), y = seq(1, 75, 1))
-# plot(xy, cex = 1)
+xy <- expand.grid(x = seq(1, 90, 1), y = seq(1, 90, 1))
 
-nb <- cell2nb(nrow = 75, ncol = 150, "queen")
+nb <- cell2nb(nrow = 90, ncol = 90, "queen")
 nb2 <- nb2listw(nb, style = style)
 MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 
@@ -130,9 +156,6 @@ MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 # To know from where and in which direction the cells are considered when building MEM
 # ************************************************************************************
 # s.label(xy, neig = nb2neig(nb), clab = 0.5)
-
-
-
 
 
 # ***************************************************************** #
@@ -150,20 +173,18 @@ MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 
 set.seed(1)
 
-y_spa_broad <- MEM[, 1] + MEM[, 2] + MEM[, 3]
-y_spa_med <- MEM[, 306] + MEM[, 307] + MEM[, 308]
+y_spa_broad <- MEM[, 6] + MEM[, 7] + MEM[, 8]
+y_spa_med <- MEM[, 40] + MEM[, 41] + MEM[, 42]
 y_noise <- rnorm(n = nrow(MEM), mean = 0, sd = 1)
 
 y_spa_broad_st <- scale(y_spa_broad)
 y_spa_med_st <- scale(y_spa_med)
 y_noise_st <- scale(y_noise)
 
-# par(mfrow = c(1, 3))
-# for(i in c(1:3)) s.value(xy, MEM[,i], csize = 0.4)
-# for(i in c(306:308)) s.value(xy, MEM[,i], csize = 0.4)
-
-# s.value(xy, y_spa_broad, csize = 0.4)
-# s.value(xy, y_spa_med, csize = 0.4)
+#par(mfrow = c(1, 3), mar = c(2, 2, 1, 1))
+#for (i in 1:3) image(matrix(MEM[, i+39], ncol = 90, byrow = F))
+#par(mfrow = c(1, 1), mar = c(2, 2, 1, 1))
+#image(matrix(y_spa_med_st, ncol = 90, byrow = F))
 
    # Creation of the response variable 'y' at the whole population level (pop):
    # **************************************************************************
@@ -171,8 +192,8 @@ y_noise_st <- scale(y_noise)
 y_broad <- (a * y_spa_broad_st) + ((1-a) * y_noise_st)
 y_med <- (a * y_spa_med_st) + ((1-a) * y_noise_st)
 
-# s.value(xy, y_broad, csize = 0.4)
-# s.value(xy, y_med, csize = 0.4)
+#par(mfrow = c(1, 1), mar = c(2, 2, 1, 1))
+#image(matrix(y_broad, ncol = 90, byrow = F))
 
 R2_pop_broad <- cor(y_broad, y_spa_broad_st)^2
 R2_pop_med <- cor(y_med, y_spa_med_st)^2
@@ -183,13 +204,10 @@ resultsM_pop[30, c(1010:2009, 3010:4009)] <- R2_pop_med
 # Begining of the simulation process:
 # ***********************************
 
-# The simulation is run first at the broad scale, and then at the medium scale.
-# Since the simulation at the medium scale have to be done exactly on the same
-# subsampled sites, and therefore on the same 'C' matrices and same 'MEMsub', we 
-# keep all the 'C' and 'MEMsub' computed at the broad scale in two lists, and we
-# reuse them at the medium scale to spare time.
-
-C.list <- vector("list", nperm)
+# Will save the nperm sampling designs ('C') and corresponding lists of 29 W matrices
+# to reuse them at the medium scale (to spare time):
+C.list <- vector("list", nperm)  
+listW.list <- vector("list", nperm)
 
    ######################
    ######################
@@ -203,91 +221,51 @@ for (i in 1:nperm) {
   # ****************
   
   if (design == "clustered") {
-    C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
     set.seed(i)
-    x1 <- runif(39, min = sample(c(1:15), 1), max = sample(c(36:42), 1))
-    y1 <- runif(39, min = sample(c(39:51), 1), max = sample(c(66:75), 1))
-    x2 <- runif(39, min = sample(c(54:63), 1), max = sample(c(81:93), 1))
-    y2 <- runif(39, min = sample(c(36:49), 1), max = sample(c(66:75), 1))
-    x3 <- runif(39, min = sample(c(99:114), 1), max = sample(c(135:148), 1))
-    y3 <- runif(39, min = sample(c(1:15), 1), max = sample(c(30:45), 1))
-    
-    C[, 1] <- rbind(x1, x2, x3)
-    C[, 2] <- rbind(y1, y2, y3)
-    
-  } else {          # design = "random"
-    
-    C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-    set.seed(i)
-    C[, 1] <- runif(117, min = 1, max = 148)
-    C[, 2] <- runif(117, min = 1, max = 75) 
-    
-  }
-  
-  # Attribute each sampled point to one of the grid cells:
-  # ******************************************************
-  
-  # /25 = taille d'un côté du quadrat ; pour que la numérotation des quadrats se
-  # fasse de gauche à droite en partant du coin inférieur gauche de la grille :
-  # N <- y * (nb horizontal de quadrats) + x + 1 ; pour que la numérotation des 
-  # quadrats se fasse de bas en haut en partant du coin inférieur gauche :
-  # N <- x * (nb vertical de quadrats) + y + 1
-  
-  grid.size <- 1
-  tri <- c()
-  for (k in 1:nrow(C)) {
-    x <- floor((C[k, 1]) / (grid.size))
-    y <- floor((C[k, 2]) / (grid.size))
-    N <- y * 150 + x + 1
-    tri <- c(tri, N)
-  }
-  
-# We can only have one sampled point by grid cell:
-# ************************************************
-# We sort the cells and 1) add 1 to a cell if it has the same number than the one 
-# before it, given that the cell is not at the right border. Otherwise, we substract
-# 1 to it. We repeat the procedure until all the sampled point are in different cells:
-
-sort <- sort(tri)
-control <- length(levels(as.factor(sort)))
-while (control != nrow(C)) {
-  cible <- c()
-  for(k in 1:(length(sort)-1)) if (sort[k+1] == sort[k]) cible <- c(cible, k+1)
-  for (k in cible) {
-    if (length(which(seq(50, 1250, 50) == sort[k])) == 0) {
-      sort[k] = sort[k] + 1
-    } else {
-      sort[k] = sort[k] - 1
+    zones <- matrix(c(1:9, rep(c(0, 30, 60), times = 3),rep(c(0, 30, 60), each = 3)), ncol = 3)
+    sampled.zones <- sample(c(1:9), 3)
+    grid <- expand.grid(c(6:25), c(6:25))
+    for (w in 1:3) {
+      points <- grid[sample(c(1:nrow(grid)), 40), ]
+      points[, 1] <- points[, 1] + zones[sampled.zones[w], 2]
+      points[, 2] <- points[, 2] + zones[sampled.zones[w], 3]
+      if (w == 1) C <- points else C <- rbind(C, points)
     }
-  }
-  control <- length(levels(as.factor(sort)))
-}
-# We rearange 'C' so that all sampled point are in different grid cells ('sort'):
-C <- xy[sort, ]
+    # Attribute each sampled point to one of the 'xy' grid cells:
+    grid.size <- 1
+    tri <- c()
+    for (k in 1:nrow(C)) {
+      x <- floor((C[k, 1]) / (grid.size))
+      y <- floor((C[k, 2]) / (grid.size))
+      N <- y * 90 + x + 1
+      tri <- c(tri, N)
+    }
+    rownames(C) <- tri
+  } else C <- xy[sample(c(1:nrow(xy)), 120), ]   # design = "random"
+
 xy.d1 <- dist(C)
 C.list[[i]] <- C
 
-# We keep the lines of MEM that correspond to the sampled cells ('tri'):
-# **********************************************************************
-MEMsub <- y_spa_broad_st[sort]
+# We keep the lines of y_spa_broad_st that correspond to the sampled cells ('tri'):
+# *********************************************************************************
+MEMsub <- y_spa_broad_st[as.numeric(rownames(C))]
 
 # We sample the response variable within the sampled cells ('y_sub'):
 # *******************************************************************
-y_sub <- y_broad[sort]
+y_sub <- y_broad[as.numeric(rownames(C))]
 
 # Real p-value and R2_sub:
 # ************************
 lm <- lm(y_sub ~ MEMsub)
 resultsB_pop[32, 9+i] <- lmp(lm)
-R2_sub <- cor(y_sub, y_spa_broad_st[sort])^2                                          
+R2_sub <- cor(y_sub, MEMsub)^2                                          
 resultsB_pop[31, c(2009+i, 3009+i)] <- R2_sub
 resultsB_pop[c(1:29), 3009+i] <- as.numeric(R2_sub - R2_pop_broad)
 
 # Visualisation:
 # **************
-# par(mfrow = c(1, 3))
-# for(k in c(1, 3, 5)) s.value(C, MEMsub[, k])
-# for(k in c(211, 212, 215)) s.value(C, MEMsub[, k])
+# par(mfrow = c(1, 1))
+# s.value(C, MEMsub)
 
 # Construction of the different W matrices:
 # #########################################
@@ -329,66 +307,66 @@ max.DB.list <- lapply(unlist, max)
 Y.del.MEM <- test.W.R2(nb = Y.del, xy = C, style = style, MEM.autocor = MEM_model)
 Y.del.MEM.f1 <- test.W.R2(nb = Y.del, xy = C, f = f1, dmax = max.del, 
                           style = style, MEM.autocor = MEM_model)
-Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+Y.del.MEM.f2 <- test.W.R2(nb = Y.del, xy = C, style = style, 
                           MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 5)
-Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
+Y.del.MEM.f3 <- test.W.R2(nb = Y.del, xy = C, style = style, 
                           MEM.autocor = MEM_model, f = f3, y = 0.5)
 # gab:
 # ****
 Y.gab.MEM <- test.W.R2(nb = Y.gab, xy = C, style = style, MEM.autocor = MEM_model)
 Y.gab.MEM.f1 <- test.W.R2(nb = Y.gab, xy = C, f = f1, dmax = max.gab, 
                           style = style, MEM.autocor = MEM_model)
-Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
+Y.gab.MEM.f2 <- test.W.R2(nb = Y.gab, xy = C, style = style, 
                           MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 5)
-Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style,  
+Y.gab.MEM.f3 <- test.W.R2(nb = Y.gab, xy = C, style = style,  
                           MEM.autocor = MEM_model, f = f3, y = 0.5)
 # rel:
 # ****
 Y.rel.MEM <- test.W.R2(nb = Y.rel, xy = C, style = style, MEM.autocor = MEM_model)
 Y.rel.MEM.f1 <- test.W.R2(nb = Y.rel, xy = C, f = f1, dmax = max.rel, 
                           style = style, MEM.autocor = MEM_model)
-Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
+Y.rel.MEM.f2 <- test.W.R2(nb = Y.rel, xy = C, style = style, 
                           MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 5)
-Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
+Y.rel.MEM.f3 <- test.W.R2(nb = Y.rel, xy = C, style = style, 
                           MEM.autocor = MEM_model, f = f3, y = 0.5)
 # mst:
 # ****
 Y.mst.MEM <- test.W.R2(nb = Y.mst, xy = C, style = style, MEM.autocor = MEM_model)
 Y.mst.MEM.f1 <- test.W.R2(nb = Y.mst, xy = C, f = f1, dmax = max.mst, 
                           style = style, MEM.autocor = MEM_model)
-Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
+Y.mst.MEM.f2 <- test.W.R2(nb = Y.mst, xy = C, style = style, 
                           MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 5)
-Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style,  
+Y.mst.MEM.f3 <- test.W.R2(nb = Y.mst, xy = C, style = style,  
                           MEM.autocor = MEM_model, f = f3, y = 0.5)
 # DB:
 # ***
 Y.DB1.MEM <- test.W.R2(nb = Y.listDB[[1]], xy = C, style = style, MEM.autocor = MEM_model)
 Y.DB1.MEM.f1 <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f1, dmax = max.DB.list[[1]], 
                           style = style, MEM.autocor = MEM_model)
-Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
+Y.DB1.MEM.f2 <- test.W.R2(nb = Y.listDB[[1]], xy = C, 
                           style = style, MEM.autocor = MEM_model, f = f2, 
                           dmax = max.DB.list[[1]], y = 5)
-Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
+Y.DB1.MEM.f3 <- test.W.R2(nb = Y.listDB[[1]], xy = C, 
                           style = style, MEM.autocor = MEM_model, f = f3, y = 0.5)
 
 Y.DB2.MEM <- test.W.R2(nb = Y.listDB[[2]], xy = C, style = style, 
                        MEM.autocor = MEM_model)
 Y.DB2.MEM.f1 <- test.W.R2(nb = Y.listDB[[2]], xy = C, f = f1, dmax = max.DB.list[[2]], 
                           style = style, MEM.autocor = MEM_model)
-Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
+Y.DB2.MEM.f2 <- test.W.R2(nb = Y.listDB[[2]], xy = C, 
                           style = style, MEM.autocor = MEM_model, f = f2, 
                           dmax = max.DB.list[[2]], y = 5)
-Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, 
+Y.DB2.MEM.f3 <- test.W.R2(nb = Y.listDB[[2]], xy = C, 
                           style = style, MEM.autocor = MEM_model, f = f3, y = 0.5)
 
 Y.DB3.MEM <- test.W.R2(nb = Y.listDB[[3]], xy = C, style = style, 
                        MEM.autocor = MEM_model)
 Y.DB3.MEM.f1 <- test.W.R2(nb = Y.listDB[[3]], xy = C, f = f1, dmax = max.DB.list[[3]], 
                           style = style, MEM.autocor = MEM_model)
-Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
+Y.DB3.MEM.f2 <- test.W.R2(nb = Y.listDB[[3]], xy = C, 
                           style = style, MEM.autocor = MEM_model, f = f2, 
                           dmax = max.DB.list[[3]], y = 5)
-Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, 
+Y.DB3.MEM.f3 <- test.W.R2(nb = Y.listDB[[3]], xy = C, 
                           style = style, MEM.autocor = MEM_model, f = f3, y = 0.5)
 
 # DBMEM with PCNM criteria:
@@ -396,574 +374,24 @@ Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C,
 Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = style, 
                        MEM.autocor = MEM_model)
 
+listW <- list(Y.del.MEM$MEM, Y.del.MEM.f1$MEM, Y.del.MEM.f2$MEM, Y.del.MEM.f3$MEM, 
+              Y.gab.MEM$MEM, Y.gab.MEM.f1$MEM, Y.gab.MEM.f2$MEM, Y.gab.MEM.f3$MEM, 
+              Y.rel.MEM$MEM, Y.rel.MEM.f1$MEM, Y.rel.MEM.f2$MEM, Y.rel.MEM.f3$MEM, 
+              Y.mst.MEM$MEM, Y.mst.MEM.f1$MEM, Y.mst.MEM.f2$MEM, Y.mst.MEM.f3$MEM, 
+              Y.DB1.MEM$MEM, Y.DB1.MEM.f1$MEM, Y.DB1.MEM.f2$MEM, Y.DB1.MEM.f3$MEM, 
+              Y.DB2.MEM$MEM, Y.DB2.MEM.f1$MEM, Y.DB2.MEM.f2$MEM, Y.DB2.MEM.f3$MEM,
+              Y.DB3.MEM$MEM, Y.DB3.MEM.f1$MEM, Y.DB3.MEM.f2$MEM, Y.DB3.MEM.f3$MEM, 
+              Y.DB.PCNM$MEM)
+listW.list[[i]] <- listW
+
 # Significance test and MEM var. selection (fwd.sel with double stopping criterion):
 # **********************************************************************************
 # **********************************************************************************
-# del
-R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.del.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.del.MEM$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[1, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[1, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[1, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[1, i+9] <- 1     # p-val set at a value of 1 (for power computation)   
-  resultsB_pop[1, i+1009] <- NA
-  resultsB_pop[1, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f1$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.del.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f1$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.del.MEM.f1$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[2, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[2, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[2, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[2, i+9] <- 1         
-  resultsB_pop[2, i+1009] <- NA
-  resultsB_pop[2, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f2$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.del.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f2$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.del.MEM.f2$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[3, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[3, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[3, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[3, i+9] <- 1         
-  resultsB_pop[3, i+1009] <- NA
-  resultsB_pop[3, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f3$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.del.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f3$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.del.MEM.f3$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[4, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[4, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[4, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[4, i+9] <- 1         
-  resultsB_pop[4, i+1009] <- NA
-  resultsB_pop[4, i+2009] <- NA
-}
-
-# gab
-R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.gab.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.gab.MEM$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[5, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[5, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[5, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[5, i+9] <- 1         
-  resultsB_pop[5, i+1009] <- NA
-  resultsB_pop[5, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f1$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.gab.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f1$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.gab.MEM.f1$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[6, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[6, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[6, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[6, i+9] <- 1         
-  resultsB_pop[6, i+1009] <- NA
-  resultsB_pop[6, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f2$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.gab.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f2$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.gab.MEM.f2$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[7, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[7, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[7, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[7, i+9] <- 1         
-  resultsB_pop[7, i+1009] <- NA
-  resultsB_pop[7, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f3$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.gab.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f3$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.gab.MEM.f3$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[8, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[8, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[8, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[8, i+9] <- 1         
-  resultsB_pop[8, i+1009] <- NA
-  resultsB_pop[8, i+2009] <- NA
-}
-
-# rel
-R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.rel.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.rel.MEM$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[9, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[9, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[9, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[9, i+9] <- 1         
-  resultsB_pop[9, i+1009] <- NA
-  resultsB_pop[9, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f1$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.rel.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f1$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.rel.MEM.f1$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[10, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[10, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[10, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[10, i+9] <- 1         
-  resultsB_pop[10, i+1009] <- NA
-  resultsB_pop[10, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f2$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.rel.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f2$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.rel.MEM.f2$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[11, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[11, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[11, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[11, i+9] <- 1         
-  resultsB_pop[11, i+1009] <- NA
-  resultsB_pop[11, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f3$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.rel.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f3$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.rel.MEM.f3$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[12, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[12, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[12, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[12, i+9] <- 1         
-  resultsB_pop[12, i+1009] <- NA
-  resultsB_pop[12, i+2009] <- NA
-}
-
-# mst
-R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.mst.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.mst.MEM$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[13, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[13, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[13, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[13, i+9] <- 1         
-  resultsB_pop[13, i+1009] <- NA
-  resultsB_pop[13, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f1$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.mst.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f1$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.mst.MEM.f1$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[14, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[14, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[14, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[14, i+9] <- 1         
-  resultsB_pop[14, i+1009] <- NA
-  resultsB_pop[14, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f2$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.mst.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f2$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.mst.MEM.f2$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[15, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[15, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[15, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[15, i+9] <- 1         
-  resultsB_pop[15, i+1009] <- NA
-  resultsB_pop[15, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f3$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.mst.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f3$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.mst.MEM.f3$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[16, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[16, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[16, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[16, i+9] <- 1         
-  resultsB_pop[16, i+1009] <- NA
-  resultsB_pop[16, i+2009] <- NA
-}
-
-# DB1
-R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB1.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB1.MEM$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[17, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[17, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[17, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[17, i+9] <- 1         
-  resultsB_pop[17, i+1009] <- NA
-  resultsB_pop[17, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f1$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB1.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f1$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB1.MEM.f1$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[18, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[18, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[18, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[18, i+9] <- 1         
-  resultsB_pop[18, i+1009] <- NA
-  resultsB_pop[18, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f2$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB1.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f2$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB1.MEM.f2$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[19, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[19, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[19, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[19, i+9] <- 1         
-  resultsB_pop[19, i+1009] <- NA
-  resultsB_pop[19, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f3$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB1.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f3$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB1.MEM.f3$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[20, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[20, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[20, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[20, i+9] <- 1         
-  resultsB_pop[20, i+1009] <- NA
-  resultsB_pop[20, i+2009] <- NA
-}
-
-# DB2
-R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB2.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB2.MEM$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[21, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[21, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[21, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[21, i+9] <- 1         
-  resultsB_pop[21, i+1009] <- NA
-  resultsB_pop[21, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f1$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB2.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f1$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB2.MEM.f1$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[22, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[22, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[22, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[22, i+9] <- 1         
-  resultsB_pop[22, i+1009] <- NA
-  resultsB_pop[22, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f2$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB2.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f2$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB2.MEM.f2$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[23, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[23, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[23, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[23, i+9] <- 1         
-  resultsB_pop[23, i+1009] <- NA
-  resultsB_pop[23, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f3$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB2.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f3$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB2.MEM.f3$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[24, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[24, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[24, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[24, i+9] <- 1         
-  resultsB_pop[24, i+1009] <- NA
-  resultsB_pop[24, i+2009] <- NA
-}
-
-# DB3
-R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB3.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB3.MEM$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[25, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[25, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[25, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[25, i+9] <- 1         
-  resultsB_pop[25, i+1009] <- NA
-  resultsB_pop[25, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f1$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB3.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f1$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB3.MEM.f1$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[26, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[26, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[26, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[26, i+9] <- 1      
-  resultsB_pop[26, i+1009] <- NA
-  resultsB_pop[26, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f2$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB3.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f2$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB3.MEM.f2$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[27, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[27, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[27, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[27, i+9] <- 1      
-  resultsB_pop[27, i+1009] <- NA
-  resultsB_pop[27, i+2009] <- NA
-}
-R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f3$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB3.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f3$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB3.MEM.f3$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[28, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[28, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[28, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[28, i+9] <- 1      
-  resultsB_pop[28, i+1009] <- NA
-  resultsB_pop[28, i+2009] <- NA
-}
-
-# DB_PCNM
-R2adj <- RsquareAdj(rda(y_sub, Y.DB.PCNM$MEM))$adj.r.squared
-if (anova.cca(rda(y_sub, Y.DB.PCNM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-  class <- class(try(fsel <- forward.sel(y_sub, Y.DB.PCNM$MEM, 
-                                         adjR2thresh = R2adj, nperm = 999), TRUE))
-  if(class != "try-error"){
-    sign <- sort(fsel$order)
-    MEM.FwdSel <- Y.DB.PCNM$MEM[, c(sign)]
-    R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-    resultsB_pop[29, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                    permutations = 9999))$Pr[1]
-    resultsB_pop[29, i+1009] <- R2_W - R2_pop_broad
-    resultsB_pop[29, i+2009] <- R2_W - R2_sub
-  } 
-} else { 
-  R2_W <- NA
-  resultsB_pop[29, i+9] <- 1      
-  resultsB_pop[29, i+1009] <- NA
-  resultsB_pop[29, i+2009] <- NA
+for (q in 1:length(listW)) {
+  test <- MEMfwd.test(y_sub, listW[[q]])
+  resultsB_pop[q, i+9] <- test$pval
+  resultsB_pop[q, i+1009] <- test$delta_pop
+  resultsB_pop[q, i+2009] <- test$delta_sub
 }
 
 } # End of the simulation ('for') loop
@@ -1005,701 +433,33 @@ for (i in 1:nperm) {
   # Sampling scheme:
   # ****************
   C <- C.list[[i]]
-  xy.d1 <- dist(C)
+  listW <- listW.list[[i]]
   
-  # We keep the lines of MEM that correspond to the sampled cells ('tri'):
-  # **********************************************************************
-  MEMsub <- y_spa_med_st[as.numeric(row.names(C))]
+  # We keep the lines of y_spa_med_st that correspond to the sampled cells ('tri'):
+  # *******************************************************************************
+  MEMsub <- y_spa_med_st[as.numeric(rownames(C))]
   
   # We sample the response variable within the sampled cells ('y_sub'):
   # *******************************************************************
-  y_sub <- y_med[as.numeric(row.names(C))]
+  y_sub <- y_med[as.numeric(rownames(C))]
   
   # Real p-value and R2_sub:
   # ************************
   lm <- lm(y_sub ~ MEMsub)
   resultsM_pop[32, 9+i] <- lmp(lm)
-  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2                                          
+  R2_sub <- cor(y_sub, MEMsub)^2                                          
   resultsM_pop[31, c(2009+i, 3009+i)] <- R2_sub
   resultsM_pop[c(1:29), 3009+i] <- as.numeric(R2_sub - R2_pop_med)
-  
-  # Construction of the different W matrices:
-  # #########################################
-  
-  # Connectivity matrices (B):
-  # **************************
-  
-  Y.del <- tri2nb(C) 
-  Y.gab <- graph2nb(gabrielneigh(as.matrix(C), nnmult = 5), sym = TRUE)
-  Y.rel <- graph2nb(relativeneigh(as.matrix(C), nnmult = 5), sym = TRUE)
-  Y.mst <- mst.nb(xy.d1)
-  
-  # Distance-based B (radius around points):
-  lowlim <- give.thresh(xy.d1)
-  uplim <- max(xy.d1)
-  thresh <- seq(lowlim, uplim, le = 10)   # 3 tested distances
-  Y.listDB <- lapply(thresh[c(1, 5, 9)], dnearneigh, x = as.matrix(C), d1 = 0)
-  
-  max.del <- max(unlist(nbdists(Y.del, as.matrix(C)))) 
-  max.gab <- max(unlist(nbdists(Y.gab, as.matrix(C))))
-  max.rel <- max(unlist(nbdists(Y.rel, as.matrix(C)))) 
-  max.mst <- max(unlist(nbdists(Y.mst, as.matrix(C))))
-  
-  nbdist <- lapply(Y.listDB, coords = as.matrix(C), nbdists)
-  unlist <- lapply(nbdist, unlist)
-  max.DB.list <- lapply(unlist, max)
-  
-  # Generation of MEM variables:
-  # ****************************
-  # del:
-  # ****
-  Y.del.MEM <- test.W.R2(nb = Y.del, xy = C, style = style, MEM.autocor = MEM_model)
-  Y.del.MEM.f1 <- test.W.R2(nb = Y.del, xy = C, f = f1, dmax = max.del, 
-                            style = style, MEM.autocor = MEM_model)
-  Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 5)
-  Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # gab:
-  # ****
-  Y.gab.MEM <- test.W.R2(nb = Y.gab, xy = C, style = style, MEM.autocor = MEM_model)
-  Y.gab.MEM.f1 <- test.W.R2(nb = Y.gab, xy = C, f = f1, dmax = max.gab, 
-                            style = style, MEM.autocor = MEM_model)
-  Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 5)
-  Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style,
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # rel:
-  # ****
-  Y.rel.MEM <- test.W.R2(nb = Y.rel, xy = C, style = style, MEM.autocor = MEM_model)
-  Y.rel.MEM.f1 <- test.W.R2(nb = Y.rel, xy = C, f = f1, dmax = max.rel, 
-                            style = style, MEM.autocor = MEM_model)
-  Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 5)
-  Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # mst:
-  # ****
-  Y.mst.MEM <- test.W.R2(nb = Y.mst, xy = C, style = style, MEM.autocor = MEM_model)
-  Y.mst.MEM.f1 <- test.W.R2(nb = Y.mst, xy = C, f = f1, dmax = max.mst, 
-                            style = style, MEM.autocor = MEM_model)
-  Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style,  
-                            MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 5)
-  Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # DB:
-  # ***
-  Y.DB1.MEM <- test.W.R2(nb = Y.listDB[[1]], xy = C, style = style, 
-                         MEM.autocor = MEM_model)
-  Y.DB1.MEM.f1 <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f1, 
-                            dmax = max.DB.list[[1]], style = style, 
-                            MEM.autocor = MEM_model)
-  Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[1]], 
-                            y = 5)
-  Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, 
-                            y = 0.5)
-  
-  Y.DB2.MEM <- test.W.R2(nb = Y.listDB[[2]], xy = C, style = style, 
-                         MEM.autocor = MEM_model)
-  Y.DB2.MEM.f1 <- test.W.R2(nb = Y.listDB[[2]], xy = C, f = f1, 
-                            dmax = max.DB.list[[2]], style = style, 
-                            MEM.autocor = MEM_model)
-  Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[2]], 
-                            y = 5)
-  Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, 
-                            y = 0.5)
-  
-  Y.DB3.MEM <- test.W.R2(nb = Y.listDB[[3]], xy = C, style = style, 
-                         MEM.autocor = MEM_model)
-  Y.DB3.MEM.f1 <- test.W.R2(nb = Y.listDB[[3]], xy = C, f = f1, 
-                            dmax = max.DB.list[[3]], style = style, 
-                            MEM.autocor = MEM_model)
-  Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[3]], 
-                            y = 5)
-  Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, 
-                            y = 0.5)
-  
-  # DBMEM with PCNM criteria:
-  # *************************
-  Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = style,
-                         MEM.autocor = MEM_model)
   
   # Significance test and MEM var. selection (fwd.sel with double stopping criterion):
   # **********************************************************************************
   # **********************************************************************************
-  # del
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[1, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_pop[1, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[1, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[1, i+9] <- 1     # p-val set at a value of 1 (for power computation)   
-    resultsM_pop[1, i+1009] <- NA
-    resultsM_pop[1, i+2009] <- NA
+  for (q in 1:length(listW)) {
+    test <- MEMfwd.test(y_sub, listW[[q]])
+    resultsM_pop[q, i+9] <- test$pval
+    resultsM_pop[q, i+1009] <- test$delta_pop
+    resultsM_pop[q, i+2009] <- test$delta_sub
   }
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[2, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_pop[2, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[2, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[2, i+9] <- 1         
-    resultsM_pop[2, i+1009] <- NA
-    resultsM_pop[2, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[3, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_pop[3, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[3, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[3, i+9] <- 1         
-    resultsM_pop[3, i+1009] <- NA
-    resultsM_pop[3, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[4, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_pop[4, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[4, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[4, i+9] <- 1         
-    resultsM_pop[4, i+1009] <- NA
-    resultsM_pop[4, i+2009] <- NA
-  }
-  
-  # gab
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[5, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_pop[5, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[5, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[5, i+9] <- 1         
-    resultsM_pop[5, i+1009] <- NA
-    resultsM_pop[5, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[6, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_pop[6, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[6, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[6, i+9] <- 1         
-    resultsM_pop[6, i+1009] <- NA
-    resultsM_pop[6, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[7, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_pop[7, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[7, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[7, i+9] <- 1         
-    resultsM_pop[7, i+1009] <- NA
-    resultsM_pop[7, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[8, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_pop[8, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[8, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[8, i+9] <- 1         
-    resultsM_pop[8, i+1009] <- NA
-    resultsM_pop[8, i+2009] <- NA
-  }
-  
-  # rel
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[9, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_pop[9, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[9, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[9, i+9] <- 1         
-    resultsM_pop[9, i+1009] <- NA
-    resultsM_pop[9, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[10, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[10, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[10, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[10, i+9] <- 1         
-    resultsM_pop[10, i+1009] <- NA
-    resultsM_pop[10, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[11, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[11, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[11, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[11, i+9] <- 1         
-    resultsM_pop[11, i+1009] <- NA
-    resultsM_pop[11, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[12, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[12, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[12, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[12, i+9] <- 1         
-    resultsM_pop[12, i+1009] <- NA
-    resultsM_pop[12, i+2009] <- NA
-  }
-  
-  # mst
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[13, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[13, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[13, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[13, i+9] <- 1         
-    resultsM_pop[13, i+1009] <- NA
-    resultsM_pop[13, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[14, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[14, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[14, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[14, i+9] <- 1         
-    resultsM_pop[14, i+1009] <- NA
-    resultsM_pop[14, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[15, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[15, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[15, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[15, i+9] <- 1         
-    resultsM_pop[15, i+1009] <- NA
-    resultsM_pop[15, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[16, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[16, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[16, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[16, i+9] <- 1         
-    resultsM_pop[16, i+1009] <- NA
-    resultsM_pop[16, i+2009] <- NA
-  }
-  
-  # DB1
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[17, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[17, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[17, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[17, i+9] <- 1         
-    resultsM_pop[17, i+1009] <- NA
-    resultsM_pop[17, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[18, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[18, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[18, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[18, i+9] <- 1         
-    resultsM_pop[18, i+1009] <- NA
-    resultsM_pop[18, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[19, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[19, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[19, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[19, i+9] <- 1         
-    resultsM_pop[19, i+1009] <- NA
-    resultsM_pop[19, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[20, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[20, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[20, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[20, i+9] <- 1         
-    resultsM_pop[20, i+1009] <- NA
-    resultsM_pop[20, i+2009] <- NA
-  }
-  
-  # DB2
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[21, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[21, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[21, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[21, i+9] <- 1         
-    resultsM_pop[21, i+1009] <- NA
-    resultsM_pop[21, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[22, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[22, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[22, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[22, i+9] <- 1         
-    resultsM_pop[22, i+1009] <- NA
-    resultsM_pop[22, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[23, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[23, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[23, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[23, i+9] <- 1         
-    resultsM_pop[23, i+1009] <- NA
-    resultsM_pop[23, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[24, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[24, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[24, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[24, i+9] <- 1         
-    resultsM_pop[24, i+1009] <- NA
-    resultsM_pop[24, i+2009] <- NA
-  }
-  
-  # DB3
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[25, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[25, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[25, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[25, i+9] <- 1         
-    resultsM_pop[25, i+1009] <- NA
-    resultsM_pop[25, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[26, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[26, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[26, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[26, i+9] <- 1      
-    resultsM_pop[26, i+1009] <- NA
-    resultsM_pop[26, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[27, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[27, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[27, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[27, i+9] <- 1      
-    resultsM_pop[27, i+1009] <- NA
-    resultsM_pop[27, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[28, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[28, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[28, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[28, i+9] <- 1      
-    resultsM_pop[28, i+1009] <- NA
-    resultsM_pop[28, i+2009] <- NA
-  }
-  
-  # DB_PCNM
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB.PCNM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB.PCNM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB.PCNM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB.PCNM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_pop[29, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_pop[29, i+1009] <- R2_W - R2_pop_broad
-      resultsM_pop[29, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_pop[29, i+9] <- 1      
-    resultsM_pop[29, i+1009] <- NA
-    resultsM_pop[29, i+2009] <- NA
-  }
-  
 } # End of the simulation ('for') loop
 
 # Median and standard deviation of the deltaR2:
@@ -1734,148 +494,10 @@ write.table(resultsM_pop, file = res_file_name, sep = "\t")
 
 # ****************************************************************** #
 ### II. The sampling design remains unchanged and the response varies:
-### ==> Accuracy of the W matrices with respect to R2_sub, that is,
-### the maximum R2 explainable based on the sampling design. Here, we
-### are therefore not interested to compare R²_W to R2_pop, but only
-### to R2_sub. ######################################################
-#####################################################################
-#####################################################################
-# ***************************************************************** #
+# ****************************************************************** #
 
-set.seed(1)
-
-# Sampling scheme:
-# ****************
-
-if (design == "clustered") {
-  C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  x1 <- runif(39, min = sample(c(1:15), 1), max = sample(c(36:42), 1))
-  y1 <- runif(39, min = sample(c(39:51), 1), max = sample(c(66:75), 1))
-  x2 <- runif(39, min = sample(c(54:63), 1), max = sample(c(81:93), 1))
-  y2 <- runif(39, min = sample(c(36:49), 1), max = sample(c(66:75), 1))
-  x3 <- runif(39, min = sample(c(99:114), 1), max = sample(c(135:148), 1))
-  y3 <- runif(39, min = sample(c(1:15), 1), max = sample(c(30:45), 1))
-  
-  C[, 1] <- rbind(x1, x2, x3)
-  C[, 2] <- rbind(y1, y2, y3)
-  
-} else {          # design = "random"
-  
-  C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  C[, 1] <- runif(117, min = 1, max = 148)
-  C[, 2] <- runif(117, min = 1, max = 75) 
-  
-}
-
-# Attribute each sampled point to one of the grid cells:
-# ******************************************************
-
-grid.size <- 1
-tri <- c()
-for (k in 1:nrow(C)) {
-  x <- floor((C[k, 1]) / (grid.size))
-  y <- floor((C[k, 2]) / (grid.size))
-  N <- y * 150 + x + 1
-  tri <- c(tri, N)
-}
-
-# We can only have one sampled point by grid cell:
-# ************************************************
-
-sort <- sort(tri)
-control <- length(levels(as.factor(sort)))
-while (control != nrow(C)) {
-  cible <- c()
-  for(k in 1:(length(sort)-1)) if (sort[k+1] == sort[k]) cible <- c(cible, k+1)
-  for (k in cible) {
-    if (length(which(seq(50, 1250, 50) == sort[k])) == 0) {
-      sort[k] = sort[k] + 1
-    } else {
-      sort[k] = sort[k] - 1
-    }
-  }
-  control <- length(levels(as.factor(sort)))
-}
-# We rearange 'C' so that all sampled point are in different grid cells ('sort'):
-C <- xy[sort, ]
-xy.d1 <- dist(C)
-
-# Construction of the different W matrices:
-# #########################################
-# The W matrices using a concdown or concup weighting matrix will be constructed
-# in the simulation loop (the exponent parameter is chosen based on 'y_sub').
-
-# Connectivity matrices (B):
-# **************************
-
-Y.del <- tri2nb(C) 
-Y.gab <- graph2nb(gabrielneigh(as.matrix(C), nnmult = 5), sym = TRUE)
-Y.rel <- graph2nb(relativeneigh(as.matrix(C), nnmult = 5), sym = TRUE)
-Y.mst <- mst.nb(xy.d1)
-
-# Distance-based B (radius around points):
-lowlim <- give.thresh(xy.d1)
-uplim <- max(xy.d1)
-thresh <- seq(lowlim, uplim, le = 10)   # 3 tested distances
-Y.listDB <- lapply(thresh[c(1, 5, 9)], dnearneigh, x = as.matrix(C), d1 = 0)
-
-# Weighting functions and fixed parametres:
-# *****************************************
-f1 <- function (D, dmax)    { 1 - (D/dmax) }        # Linear function
-f2 <- function (D, dmax, y) { 1 - (D/dmax)^y }      # Concave-down function
-f3 <- function (D, y)       { 1 / D^y }             # Concave-up function
-f4 <- function (D, t)       { 1 - (D/(4*t))^2 }     # PCNM criterion
-
-max.del <- max(unlist(nbdists(Y.del, as.matrix(C)))) 
-max.gab <- max(unlist(nbdists(Y.gab, as.matrix(C))))
-max.rel <- max(unlist(nbdists(Y.rel, as.matrix(C)))) 
-max.mst <- max(unlist(nbdists(Y.mst, as.matrix(C))))
-
-nbdist <- lapply(Y.listDB, coords = as.matrix(C), nbdists)
-unlist <- lapply(nbdist, unlist)
-max.DB.list <- lapply(unlist, max)
-
-# Generation of MEM variables:
-# ****************************
-# del:
-# ****
-Y.del.MEM <- test.W.R2(nb = Y.del, xy = C, style = style, MEM.autocor = MEM_model)
-Y.del.MEM.f1 <- test.W.R2(nb = Y.del, xy = C, f = f1, dmax = max.del, style = style, 
-                          MEM.autocor = MEM_model)
-# gab:
-# ****
-Y.gab.MEM <- test.W.R2(nb = Y.gab, xy = C, style = style, MEM.autocor = MEM_model)
-Y.gab.MEM.f1 <- test.W.R2(nb = Y.gab, xy = C, f = f1, dmax = max.gab, style = style, 
-                          MEM.autocor = MEM_model)
-# rel:
-# ****
-Y.rel.MEM <- test.W.R2(nb = Y.rel, xy = C, style = style, MEM.autocor = MEM_model)
-Y.rel.MEM.f1 <- test.W.R2(nb = Y.rel, xy = C, f = f1, dmax = max.rel, style = style, 
-                          MEM.autocor = MEM_model)
-# mst:
-# ****
-Y.mst.MEM <- test.W.R2(nb = Y.mst, xy = C, style = style, MEM.autocor = MEM_model)
-Y.mst.MEM.f1 <- test.W.R2(nb = Y.mst, xy = C, f = f1, dmax = max.mst, style = style, 
-                          MEM.autocor = MEM_model)
-# DB:
-# ***
-Y.DB1.MEM <- test.W.R2(nb = Y.listDB[[1]], xy = C, style = style, 
-                       MEM.autocor = MEM_model)
-Y.DB1.MEM.f1 <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f1, dmax = max.DB.list[[1]], 
-                          style = style, MEM.autocor = MEM_model)
-Y.DB2.MEM <- test.W.R2(nb = Y.listDB[[2]], xy = C, style = style, 
-                       MEM.autocor = MEM_model)
-Y.DB2.MEM.f1 <- test.W.R2(nb = Y.listDB[[2]], xy = C, f = f1, dmax = max.DB.list[[2]], 
-                          style = style, MEM.autocor = MEM_model)
-Y.DB3.MEM <- test.W.R2(nb = Y.listDB[[3]], xy = C, style = style, 
-                       MEM.autocor = MEM_model)
-Y.DB3.MEM.f1 <- test.W.R2(nb = Y.listDB[[3]], xy = C, f = f1, dmax = max.DB.list[[3]], 
-                          style = style, MEM.autocor = MEM_model)
-# DBMEM with PCNM criteria:
-# *************************
-Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = style, 
-                       MEM.autocor = MEM_model)
-
+C <- C.list[[5]]
+listW <- listW.list[[5]]
 
 ######################
 ######################
@@ -1883,16 +505,14 @@ Y.DB.PCNM <- test.W.R2(nb = Y.listDB[[1]], xy = C, f = f4, t = lowlim, style = s
 ######################
 ######################
 
-# We keep the rows of 'MEM' that correspond to the sampled cells ('tri'):
-# ***********************************************************************
-MEMsub <- y_spa_broad_st[sort]
+# We keep the rows of y_spa_broad_st that correspond to the sampled cells (rownames(C)):
+# **************************************************************************************
+MEMsub <- y_spa_broad_st[as.numeric(rownames(C))]
 
 for (i in 1:nperm) { 
   
   set.seed(i)
-  
-  y_noise <- rnorm(n = nrow(MEM), mean = 0, sd = 1)
-  y_noise_st <- scale(y_noise)
+  y_noise_st <- scale(rnorm(n = nrow(MEM), mean = 0, sd = 1))
   
   # Creation of the response variable 'y' at the whole population level (pop):
   # **************************************************************************
@@ -1901,635 +521,25 @@ for (i in 1:nperm) {
   R2_pop_broad <- cor(y_broad, y_spa_broad_st)^2
   resultsB_sub[30, c(1009+i, 3009+i)] <- R2_pop_broad
   
-  y_sub <- y_broad[sort]
+  y_sub <- y_broad[as.numeric(rownames(C))]
   
   # Real p-value and R2_sub:
   # ************************
   lm <- lm(y_sub ~ MEMsub)
   resultsB_sub[32, 9+i] <- lmp(lm)
-  R2_sub <- cor(y_sub, y_spa_broad_st[sort])^2                                          
+  R2_sub <- cor(y_sub, MEMsub)^2                                          
   resultsB_sub[31, c(2009+i, 3009+i)] <- R2_sub
   resultsB_sub[c(1:29), 3009+i] <- as.numeric(R2_sub - R2_pop_broad)
-  
-  # Generation of the remaining W matrices (with concdown and concup functions):
-  # ****************************************************************************
-  # del:
-  # ****
-  Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 5)
-  Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # gab:
-  # ****
-  Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 5)
-  Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # rel:
-  # ****
-  Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 5)
-  Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # mst:
-  # ****
-  Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 5)
-  Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # DB:
-  # ***
-  Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, 
-                            style = style, MEM.autocor = MEM_model, f = f2, 
-                            dmax = max.DB.list[[1]], y = 5)
-  Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, 
-                            y = 0.5)
-  
-  Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[2]], 
-                            y = 5)
-  Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, 
-                            y = 0.5)
-  
-  Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[3]], 
-                            y = 5)
-  Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, 
-                            y = 0.5)
   
   # Significance test and MEM var. selection (fwd.sel with double stopping criterion):
   # **********************************************************************************
   # **********************************************************************************
-  # del
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[1, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsB_sub[1, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[1, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[1, i+9] <- 1     # p-val set at a value of 1 (for power computation)   
-    resultsB_sub[1, i+1009] <- NA
-    resultsB_sub[1, i+2009] <- NA
+  for (q in 1:length(listW)) {
+    test <- MEMfwd.test(y_sub, listW[[q]])
+    resultsB_sub[q, i+9] <- test$pval
+    resultsB_sub[q, i+1009] <- test$delta_pop
+    resultsB_sub[q, i+2009] <- test$delta_sub
   }
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[2, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsB_sub[2, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[2, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[2, i+9] <- 1         
-    resultsB_sub[2, i+1009] <- NA
-    resultsB_sub[2, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[3, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsB_sub[3, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[3, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[3, i+9] <- 1         
-    resultsB_sub[3, i+1009] <- NA
-    resultsB_sub[3, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[4, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsB_sub[4, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[4, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[4, i+9] <- 1         
-    resultsB_sub[4, i+1009] <- NA
-    resultsB_sub[4, i+2009] <- NA
-  }
-  
-  # gab
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[5, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsB_sub[5, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[5, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[5, i+9] <- 1         
-    resultsB_sub[5, i+1009] <- NA
-    resultsB_sub[5, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[6, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsB_sub[6, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[6, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[6, i+9] <- 1         
-    resultsB_sub[6, i+1009] <- NA
-    resultsB_sub[6, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[7, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsB_sub[7, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[7, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[7, i+9] <- 1         
-    resultsB_sub[7, i+1009] <- NA
-    resultsB_sub[7, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[8, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsB_sub[8, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[8, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[8, i+9] <- 1         
-    resultsB_sub[8, i+1009] <- NA
-    resultsB_sub[8, i+2009] <- NA
-  }
-  
-  # rel
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[9, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsB_sub[9, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[9, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[9, i+9] <- 1         
-    resultsB_sub[9, i+1009] <- NA
-    resultsB_sub[9, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[10, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[10, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[10, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[10, i+9] <- 1         
-    resultsB_sub[10, i+1009] <- NA
-    resultsB_sub[10, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[11, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[11, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[11, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[11, i+9] <- 1         
-    resultsB_sub[11, i+1009] <- NA
-    resultsB_sub[11, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[12, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[12, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[12, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[12, i+9] <- 1         
-    resultsB_sub[12, i+1009] <- NA
-    resultsB_sub[12, i+2009] <- NA
-  }
-  
-  # mst
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[13, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[13, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[13, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[13, i+9] <- 1         
-    resultsB_sub[13, i+1009] <- NA
-    resultsB_sub[13, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[14, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[14, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[14, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[14, i+9] <- 1         
-    resultsB_sub[14, i+1009] <- NA
-    resultsB_sub[14, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[15, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[15, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[15, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[15, i+9] <- 1         
-    resultsB_sub[15, i+1009] <- NA
-    resultsB_sub[15, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[16, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[16, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[16, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[16, i+9] <- 1         
-    resultsB_sub[16, i+1009] <- NA
-    resultsB_sub[16, i+2009] <- NA
-  }
-  
-  # DB1
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[17, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[17, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[17, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[17, i+9] <- 1         
-    resultsB_sub[17, i+1009] <- NA
-    resultsB_sub[17, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[18, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[18, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[18, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[18, i+9] <- 1         
-    resultsB_sub[18, i+1009] <- NA
-    resultsB_sub[18, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[19, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[19, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[19, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[19, i+9] <- 1         
-    resultsB_sub[19, i+1009] <- NA
-    resultsB_sub[19, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[20, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[20, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[20, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[20, i+9] <- 1         
-    resultsB_sub[20, i+1009] <- NA
-    resultsB_sub[20, i+2009] <- NA
-  }
-  
-  # DB2
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[21, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[21, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[21, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[21, i+9] <- 1         
-    resultsB_sub[21, i+1009] <- NA
-    resultsB_sub[21, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[22, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[22, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[22, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[22, i+9] <- 1         
-    resultsB_sub[22, i+1009] <- NA
-    resultsB_sub[22, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[23, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[23, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[23, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[23, i+9] <- 1         
-    resultsB_sub[23, i+1009] <- NA
-    resultsB_sub[23, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[24, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[24, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[24, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[24, i+9] <- 1         
-    resultsB_sub[24, i+1009] <- NA
-    resultsB_sub[24, i+2009] <- NA
-  }
-  
-  # DB3
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[25, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[25, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[25, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[25, i+9] <- 1         
-    resultsB_sub[25, i+1009] <- NA
-    resultsB_sub[25, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[26, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[26, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[26, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[26, i+9] <- 1      
-    resultsB_sub[26, i+1009] <- NA
-    resultsB_sub[26, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[27, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[27, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[27, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[27, i+9] <- 1      
-    resultsB_sub[27, i+1009] <- NA
-    resultsB_sub[27, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[28, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[28, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[28, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[28, i+9] <- 1      
-    resultsB_sub[28, i+1009] <- NA
-    resultsB_sub[28, i+2009] <- NA
-  }
-  
-  # DB_PCNM
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB.PCNM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB.PCNM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB.PCNM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB.PCNM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsB_sub[29, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsB_sub[29, i+1009] <- R2_W - R2_pop_broad
-      resultsB_sub[29, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsB_sub[29, i+9] <- 1      
-    resultsB_sub[29, i+1009] <- NA
-    resultsB_sub[29, i+2009] <- NA
-  }
-  
 } # End of the simulation ('for') loop
 
 # Median and standard deviation of the deltaR2:
@@ -2567,14 +577,12 @@ write.table(resultsB_sub, file = res_file_name, sep = "\t")
 
 # We keep the lines of MEM that correspond to the sampled cells ('tri'):
 # **********************************************************************
-MEMsub <- y_spa_med_st[sort]
+MEMsub <- y_spa_med_st[as.numeric(rownames(C))]
 
 for (i in 1:nperm) {
   
   set.seed(i)
-  
-  y_noise <- rnorm(n = nrow(MEM), mean = 0, sd = 1)
-  y_noise_st <- scale(y_noise)
+  y_noise_st <- scale(rnorm(n = nrow(MEM), mean = 0, sd = 1))
   
   # Creation of the response variable 'y' at the whole population level (pop):
   # **************************************************************************
@@ -2583,635 +591,25 @@ for (i in 1:nperm) {
   R2_pop_med <- cor(y_med, y_spa_med_st)^2
   resultsM_sub[30, c(1009+i, 3009+i)] <- R2_pop_med
   
-  y_sub <- y_med[sort]
+  y_sub <- y_med[as.numeric(rownames(C))]
   
   # Real p-value and R2_sub:
   # ************************
   lm <- lm(y_sub ~ MEMsub)
   resultsM_sub[32, 9+i] <- lmp(lm)
-  R2_sub <- cor(y_sub, y_spa_med_st[sort])^2                                          
+  R2_sub <- cor(y_sub, MEMsub)^2                                          
   resultsM_sub[31, c(2009+i, 3009+i)] <- R2_sub
   resultsM_sub[c(1:29), 3009+i] <- as.numeric(R2_sub - R2_pop_med)
-  
-  # Generation of the remaining W matrices (with concdown and concup functions):
-  # ****************************************************************************
-  # del:
-  # ****
-  Y.del.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.del, y = 5)
-  Y.del.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.del, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # gab:
-  # ****
-  Y.gab.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style,  
-                            MEM.autocor = MEM_model, f = f2, dmax = max.gab, y = 5)
-  Y.gab.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.gab, xy = C, style = style,  
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # rel:
-  # ****
-  Y.rel.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.rel, y = 5)
-  Y.rel.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.rel, xy = C, style = style,  
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # mst:
-  # ****
-  Y.mst.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.mst, y = 5)
-  Y.mst.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.mst, xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  y = 0.5)
-  # DB:
-  # ***
-  Y.DB1.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[1]], 
-                            y = 5)
-  Y.DB1.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[1]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3,  
-                            y = 0.5)
-  
-  Y.DB2.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[2]], 
-                            y = 5)
-  Y.DB2.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[2]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, 
-                            y = 0.5)
-  
-  Y.DB3.MEM.f2 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f2, dmax = max.DB.list[[3]], 
-                            y = 5)
-  Y.DB3.MEM.f3 <- test.W.R2(Y = y_sub, nb = Y.listDB[[3]], xy = C, style = style, 
-                            MEM.autocor = MEM_model, f = f3, 
-                            y = 0.5)
   
   # Significance test and MEM var. selection (fwd.sel with double stopping criterion):
   # **********************************************************************************
   # **********************************************************************************
-  # del
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[1, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_sub[1, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[1, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[1, i+9] <- 1     # p-val set at a value of 1 (for power computation)   
-    resultsM_sub[1, i+1009] <- NA
-    resultsM_sub[1, i+2009] <- NA
+  for (q in 1:length(listW)) {
+    test <- MEMfwd.test(y_sub, listW[[q]])
+    resultsM_sub[q, i+9] <- test$pval
+    resultsM_sub[q, i+1009] <- test$delta_pop
+    resultsM_sub[q, i+2009] <- test$delta_sub
   }
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[2, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_sub[2, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[2, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[2, i+9] <- 1         
-    resultsM_sub[2, i+1009] <- NA
-    resultsM_sub[2, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[3, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_sub[3, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[3, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[3, i+9] <- 1         
-    resultsM_sub[3, i+1009] <- NA
-    resultsM_sub[3, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.del.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.del.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.del.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.del.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[4, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_sub[4, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[4, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[4, i+9] <- 1         
-    resultsM_sub[4, i+1009] <- NA
-    resultsM_sub[4, i+2009] <- NA
-  }
-  
-  # gab
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[5, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_sub[5, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[5, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[5, i+9] <- 1         
-    resultsM_sub[5, i+1009] <- NA
-    resultsM_sub[5, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[6, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_sub[6, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[6, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[6, i+9] <- 1         
-    resultsM_sub[6, i+1009] <- NA
-    resultsM_sub[6, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[7, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_sub[7, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[7, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[7, i+9] <- 1         
-    resultsM_sub[7, i+1009] <- NA
-    resultsM_sub[7, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.gab.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.gab.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.gab.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.gab.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[8, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_sub[8, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[8, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[8, i+9] <- 1         
-    resultsM_sub[8, i+1009] <- NA
-    resultsM_sub[8, i+2009] <- NA
-  }
-  
-  # rel
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[9, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                      permutations = 9999))$Pr[1]
-      resultsM_sub[9, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[9, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[9, i+9] <- 1         
-    resultsM_sub[9, i+1009] <- NA
-    resultsM_sub[9, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[10, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[10, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[10, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[10, i+9] <- 1         
-    resultsM_sub[10, i+1009] <- NA
-    resultsM_sub[10, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[11, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[11, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[11, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[11, i+9] <- 1         
-    resultsM_sub[11, i+1009] <- NA
-    resultsM_sub[11, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.rel.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.rel.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.rel.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.rel.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[12, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[12, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[12, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[12, i+9] <- 1         
-    resultsM_sub[12, i+1009] <- NA
-    resultsM_sub[12, i+2009] <- NA
-  }
-  
-  # mst
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[13, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[13, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[13, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[13, i+9] <- 1         
-    resultsM_sub[13, i+1009] <- NA
-    resultsM_sub[13, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[14, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[14, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[14, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[14, i+9] <- 1         
-    resultsM_sub[14, i+1009] <- NA
-    resultsM_sub[14, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[15, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[15, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[15, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[15, i+9] <- 1         
-    resultsM_sub[15, i+1009] <- NA
-    resultsM_sub[15, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.mst.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.mst.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.mst.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.mst.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[16, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[16, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[16, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[16, i+9] <- 1         
-    resultsM_sub[16, i+1009] <- NA
-    resultsM_sub[16, i+2009] <- NA
-  }
-  
-  # DB1
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[17, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[17, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[17, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[17, i+9] <- 1         
-    resultsM_sub[17, i+1009] <- NA
-    resultsM_sub[17, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[18, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[18, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[18, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[18, i+9] <- 1         
-    resultsM_sub[18, i+1009] <- NA
-    resultsM_sub[18, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[19, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[19, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[19, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[19, i+9] <- 1         
-    resultsM_sub[19, i+1009] <- NA
-    resultsM_sub[19, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB1.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB1.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB1.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB1.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[20, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[20, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[20, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[20, i+9] <- 1         
-    resultsM_sub[20, i+1009] <- NA
-    resultsM_sub[20, i+2009] <- NA
-  }
-  
-  # DB2
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[21, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[21, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[21, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[21, i+9] <- 1         
-    resultsM_sub[21, i+1009] <- NA
-    resultsM_sub[21, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[22, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[22, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[22, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[22, i+9] <- 1         
-    resultsM_sub[22, i+1009] <- NA
-    resultsM_sub[22, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[23, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[23, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[23, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[23, i+9] <- 1         
-    resultsM_sub[23, i+1009] <- NA
-    resultsM_sub[23, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB2.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB2.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB2.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB2.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[24, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[24, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[24, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[24, i+9] <- 1         
-    resultsM_sub[24, i+1009] <- NA
-    resultsM_sub[24, i+2009] <- NA
-  }
-  
-  # DB3
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[25, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[25, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[25, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[25, i+9] <- 1         
-    resultsM_sub[25, i+1009] <- NA
-    resultsM_sub[25, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f1$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM.f1$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f1$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM.f1$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[26, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[26, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[26, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[26, i+9] <- 1      
-    resultsM_sub[26, i+1009] <- NA
-    resultsM_sub[26, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f2$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM.f2$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f2$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM.f2$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[27, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[27, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[27, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[27, i+9] <- 1      
-    resultsM_sub[27, i+1009] <- NA
-    resultsM_sub[27, i+2009] <- NA
-  }
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB3.MEM.f3$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB3.MEM.f3$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB3.MEM.f3$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB3.MEM.f3$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[28, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[28, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[28, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[28, i+9] <- 1      
-    resultsM_sub[28, i+1009] <- NA
-    resultsM_sub[28, i+2009] <- NA
-  }
-  
-  # DB_PCNM
-  R2adj <- RsquareAdj(rda(y_sub, Y.DB.PCNM$MEM))$adj.r.squared
-  if (anova.cca(rda(y_sub, Y.DB.PCNM$MEM), permutations = 9999)$Pr[1] <= 0.05) {
-    class <- class(try(fsel <- forward.sel(y_sub, Y.DB.PCNM$MEM, 
-                                           adjR2thresh = R2adj, nperm = 999), TRUE))
-    if(class != "try-error"){
-      sign <- sort(fsel$order)
-      MEM.FwdSel <- Y.DB.PCNM$MEM[, c(sign)]
-      R2_W <- RsquareAdj(rda(y_sub, MEM.FwdSel))$adj.r.squared
-      resultsM_sub[29, i+9] <- as.data.frame(anova.cca(rda(y_sub, MEM.FwdSel),
-                                                       permutations = 9999))$Pr[1]
-      resultsM_sub[29, i+1009] <- R2_W - R2_pop_broad
-      resultsM_sub[29, i+2009] <- R2_W - R2_sub
-    } 
-  } else { 
-    R2_W <- NA
-    resultsM_sub[29, i+9] <- 1      
-    resultsM_sub[29, i+1009] <- NA
-    resultsM_sub[29, i+2009] <- NA
-  }
-  
 } # End of the simulation ('for') loop
 
 # Median and standard deviation of the deltaR2:

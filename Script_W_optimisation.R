@@ -1,7 +1,7 @@
 ################################################################
 ### ****************** Test of MEM.modsel ****************** ###
 
-rm(list=ls()[-match(c("xy", "nb", "nb2", "nb2_backup", "MEM", "MEM_backup"), ls())])
+rm(list=ls()[-match(c("xy", "nb", "nb2", "MEM", "MEM_backup"), ls())])
 
 # Usefull packages and functions:
 # *******************************
@@ -18,23 +18,44 @@ source("MEM.modsel.R")
 # ****************************************
 
 # Define if we want positive, negative or all eigenvectors
-MEM_model = "positive"   # Either "positive" or "negative"
+MEM_model = "positive"   # Either "positive" or "negative" (always positive in our study)
 
 # Sampling design:
 design <- "clustered"    # Either "clustered" or "random"
 
 nperm <- 1000
 
-# Structuring Intensity (low or high):
+# Structuring Intensity (strong or weak):
 a <- 0.55   # 0.35 or 0.55
 if (a < 0.5) intensity = "Weak" else intensity = "Strong"
 
 style <- "B"                  # Either "B" or "W"
-correction <- "Corrected"     # Either "Corrected" or "Uncorrected"
+correction <- "Corrected"     # p-value correction: Either "Corrected" or "Uncorrected"
 
 if (correction == "Corrected") {
   corr <- TRUE
 } else corr <- FALSE
+
+# We define the list of W matrices that we want to test in the optimisation function:
+# Here we compare 5 W matrices:
+namesw <- c("Gabriel_Linear", "Gabriel_Concave down (y = 5)", 
+            "Min. spanning tree_Linear", "Min. spanning tree_Concave down (y = 5)",
+            "DBMEM_PCNM")
+
+# IMPORTANT 1: Remember to define the same corresponding arguments in the function 
+# listw.candidates (object 'candidates' in the simulation loop!
+# IMPORTANT2: Remember to define the list of candidates from which a random W matrix will be 
+# picked up at each simulation to compare a random choice to the optimisation procedure 
+# (object 'candidates_random').
+
+# namesw <- c("Delaunay_Binary", "Delaunay_Linear",
+#            "Delaunay_Concave down (y = 5)", "Delaunay_Concave up (y = 0.5)",
+#            "Gabriel_Binary", "Gabriel_Linear", "Gabriel_Concave down (y = 5)", 
+#            "Gabriel_Concave up (y = 0.5)", "Rel. neighbourhood_Binary", 
+#            "Rel. neighbourhood_Linear", "Rel. neighbourhood_Concave down (y = 5)",
+#            "Rel. neighbourhood_Concave up (y = 0.5)", "Min. spanning tree_Binary",
+#            "Min. spanning tree_Linear", "Min. spanning tree_Concave down (y = 5)",
+#            "Min. spanning tree_Concave up (y = 0.5)", "DBMEM_PCNM")
 
 # Construction of a results matrix for each scale and for both W matrix selection:
 # ********************************************************************************
@@ -96,9 +117,9 @@ resultsM_subran <- resultsM_sub
 # The MEM are built for a full grid (50 x 25 cells):
 # **************************************************
 
-xy <- expand.grid(x = seq(1, 150, 1), y = seq(1, 75, 1))
+xy <- expand.grid(x = seq(1, 90, 1), y = seq(1, 90, 1))
 
-nb <- cell2nb(nrow = 75, ncol = 150, "queen")
+nb <- cell2nb(nrow = 90, ncol = 90, "queen")
 nb2 <- nb2listw(nb, style = style)
 MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 
@@ -118,8 +139,8 @@ MEM <- scores.listw(nb2, MEM.autocor = MEM_model)
 
 set.seed(1)
 
-y_spa_broad <- MEM[, 1] + MEM[, 2] + MEM[, 3]
-y_spa_med <- MEM[, 306] + MEM[, 307] + MEM[, 308]
+y_spa_broad <- MEM[, 6] + MEM[, 7] + MEM[, 8]
+y_spa_med <- MEM[, 40] + MEM[, 41] + MEM[, 42]
 y_noise <- rnorm(n = nrow(MEM), mean = 0, sd = 1)
 
 y_spa_broad_st <- scale(y_spa_broad)
@@ -131,8 +152,6 @@ y_noise_st <- scale(y_noise)
 
 y_broad <- (a * y_spa_broad_st) + ((1-a) * y_noise_st)
 y_med <- (a * y_spa_med_st) + ((1-a) * y_noise_st)
-
-# s.value(xy, y_broad)
 
 R2_pop_broad <- cor(y_broad, y_spa_broad_st)^2
 R2_pop_med <- cor(y_med, y_spa_med_st)^2
@@ -146,24 +165,16 @@ resultsM_popran[2, c(1010:2009, 3010:4009)] <- R2_pop_med
 # Begining of the simulation process:
 # ***********************************
 
-# The simulation is run first at the broad scale, and then at the medium scale.
-# Since the simulation at the medium scale have to be done exactly on the same
-# subsampled sites, and therefore on the same 'C' matrices and same 'MEMsub', we 
-# keep all the 'C' and 'MEMsub' computed at the broad scale in two lists, and we
-# reuse them at the medium scale to spare time.
+# Will save the nperm sampling designs ('C') and nperm corresponding lists of W candidates to 
+# reuse them at the medium scale (to spare time).
+# candidates_RandomChoice.list() will contain a bigger group of W matrices from which one will
+# be picked up randomly at each simulation in order to compare a random choice of a W matrix
+# to an optimisation process among a small subset of candidates.
 
 C.list <- vector("list", nperm)
 candidates.list <- vector("list", nperm)
+candidates_RandomChoice.list <- vector("list", nperm)
 
-# To compute the selection percentages of each W matrix:
-namesw <- c("Delaunay_Binary", "Delaunay_Linear",
-            "Delaunay_Concave down (y = 5)", "Delaunay_Concave up (y = 0.5)",
-            "Gabriel_Binary", "Gabriel_Linear", "Gabriel_Concave down (y = 5)", 
-            "Gabriel_Concave up (y = 0.5)", "Rel. neighbourhood_Binary", 
-            "Rel. neighbourhood_Linear", "Rel. neighbourhood_Concave down (y = 5)",
-            "Rel. neighbourhood_Concave up (y = 0.5)", "Min. spanning tree_Binary",
-            "Min. spanning tree_Linear", "Min. spanning tree_Concave down (y = 5)",
-            "Min. spanning tree_Concave up (y = 0.5)", "DBMEM_PCNM")
 bestmod_indexB <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
 colnames(bestmod_indexB) <- c("W matrix", "Proportion", paste("best", c(1:nperm),
                                                               sep = ""))
@@ -181,68 +192,38 @@ for (i in 1:nperm) {
   # ****************
   
   if (design == "clustered") {
-    C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
     set.seed(i)
-    x1 <- runif(39, min = sample(c(1:15), 1), max = sample(c(36:42), 1))
-    y1 <- runif(39, min = sample(c(39:51), 1), max = sample(c(66:75), 1))
-    x2 <- runif(39, min = sample(c(54:63), 1), max = sample(c(81:93), 1))
-    y2 <- runif(39, min = sample(c(36:49), 1), max = sample(c(66:75), 1))
-    x3 <- runif(39, min = sample(c(99:114), 1), max = sample(c(135:148), 1))
-    y3 <- runif(39, min = sample(c(1:15), 1), max = sample(c(30:45), 1))
-    
-    C[, 1] <- rbind(x1, x2, x3)
-    C[, 2] <- rbind(y1, y2, y3)
-    
-  } else {          # design = "random"
-    
-    C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-    set.seed(i)
-    C[, 1] <- runif(117, min = 1, max = 148)
-    C[, 2] <- runif(117, min = 1, max = 75) 
-    
-  }
-  
-  # Attribute each sampled point to one of the grid cells:
-  # ******************************************************
-  
-  grid.size <- 1
-  tri <- c()
-  for (k in 1:nrow(C)) {
-    x <- floor((C[k, 1]) / (grid.size))
-    y <- floor((C[k, 2]) / (grid.size))
-    N <- y * 150 + x + 1
-    tri <- c(tri, N)
-  }
-  
-  # We can only have one sampled point by grid cell:
-  # ************************************************
- 
-  sort <- sort(tri)
-  control <- length(levels(as.factor(sort)))
-  while (control != nrow(C)) {
-    cible <- c()
-    for (k in 1:(length(sort)-1)) if (sort[k+1] == sort[k]) cible <- c(cible, k+1)
-    for (k in cible) {
-      if (length(which(seq(50, 1250, 50) == sort[k])) == 0) {
-        sort[k] = sort[k] + 1
-      } else {
-        sort[k] = sort[k] - 1
-      }
+    zones <- matrix(c(1:9, rep(c(0, 30, 60), times = 3),rep(c(0, 30, 60), each = 3)), ncol = 3)
+    sampled.zones <- sample(c(1:9), 3)
+    grid <- expand.grid(c(6:25), c(6:25))
+    for (w in 1:3) {
+      points <- grid[sample(c(1:nrow(grid)), 40), ]
+      points[, 1] <- points[, 1] + zones[sampled.zones[w], 2]
+      points[, 2] <- points[, 2] + zones[sampled.zones[w], 3]
+      if (w == 1) C <- points else C <- rbind(C, points)
     }
-    control <- length(levels(as.factor(sort)))
-  }
-  # We rearange 'C' so that all sampled point are in different grid cells ('sort'):
-  C <- xy[sort, ]
+    # Attribute each sampled point to one of the 'xy' grid cells:
+    grid.size <- 1
+    tri <- c()
+    for (k in 1:nrow(C)) {
+      x <- floor((C[k, 1]) / (grid.size))
+      y <- floor((C[k, 2]) / (grid.size))
+      N <- y * 90 + x + 1
+      tri <- c(tri, N)
+    }
+    rownames(C) <- tri
+  } else C <- xy[sample(c(1:nrow(xy)), 120), ]   # design = "random"
+  
   xy.d1 <- dist(C)
   C.list[[i]] <- C
   
   # We keep the lines of MEM that correspond to the sampled cells ('tri'):
   # **********************************************************************
-  MEMsub <- y_spa_broad_st[sort]
+  MEMsub <- y_spa_broad_st[as.numeric(rownames(C))]
 
   # We sample the response variable within the sampled cells ('y_sub'):
   # *******************************************************************
-  y_sub <- y_broad[sort]
+  y_sub <- y_broad[as.numeric(rownames(C))]
   
   # Real p-value and R2_sub:
   # ************************
@@ -260,8 +241,11 @@ for (i in 1:nperm) {
   # choice of the W matrix: **********************************************************
   # **********************************************************************************
   # **********************************************************************************
-   candidates <- listw.candidates(C, style = style)
+   candidates <- listw.candidates(C, del = F, rel = F, binary = F, fconcup = F, style = style)
    candidates.list[[i]] <- candidates
+   thresh <- give.thresh(dist(C))
+   candidates_random <- listw.candidates(C, DB = TRUE, DBthresh = thresh, style = style)
+   candidates_RandomChoice.list[[i]] <- candidates_random
   
    memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model, correction = corr)
    if (class(memsel) != "NULL") {
@@ -272,8 +256,8 @@ for (i in 1:nperm) {
    } else resultsB_pop[1, 9+i] <- 1
    
    # Random choice of a W matrix:
-   samp <- sample(c(1:length(candidates)), 1)
-   W.ran <- candidates[[samp]]
+   samp <- sample(c(1:length(candidates_random)), 1)
+   W.ran <- candidates_random[[samp]]
 
    memsel_ran <- MEM.modsel(y_sub, W.ran, autocor = MEM_model, correction = corr)
    if (class(memsel_ran) != "NULL") {
@@ -357,11 +341,11 @@ for (i in 1:nperm) {
   
   # We keep the lines of MEM that correspond to the sampled cells ('tri'):
   # **********************************************************************
-  MEMsub <- y_spa_med_st[as.numeric(row.names(C))]
+  MEMsub <- y_spa_med_st[as.numeric(rownames(C))]
   
   # We sample the response variable within the sampled cells ('y_sub'):
   # *******************************************************************
-  y_sub <- y_med[as.numeric(row.names(C))]
+  y_sub <- y_med[as.numeric(rownames(C))]
   
   # Real p-value and R2_sub:
   # ************************
@@ -379,6 +363,7 @@ for (i in 1:nperm) {
   # **************************************************
   # **************************************************
   candidates <- candidates.list[[i]]
+  candidates_random <- candidates_RandomChoice.list[[i]]
   
   memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model, correction = corr)
   if (class(memsel) != "NULL") {
@@ -389,8 +374,8 @@ for (i in 1:nperm) {
   } else resultsM_pop[1, 9+i] <- 1
   
   # Random choice of a W matrix:
-  samp <- sample(c(1:length(candidates)), 1)
-  W.ran <- candidates[[samp]]
+  samp <- sample(c(1:length(candidates_random)), 1)
+  W.ran <- candidates_random[[samp]]
   
   memsel_ran <- MEM.modsel(y_sub, W.ran, autocor = MEM_model, correction = corr)
   if (class(memsel_ran) != "NULL") {
@@ -463,66 +448,9 @@ write.table(bestmod_indexM, file = bestmod_index_file_name, sep = "\t")
 #####################################################################
 # ***************************************************************** #
 
-# Sampling scheme:
-# ****************
-
-set.seed(1)
-
-# Sampling scheme:
-# ****************
-
-if (design == "clustered") {
-  C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  x1 <- runif(39, min = sample(c(1:15), 1), max = sample(c(36:42), 1))
-  y1 <- runif(39, min = sample(c(39:51), 1), max = sample(c(66:75), 1))
-  x2 <- runif(39, min = sample(c(54:63), 1), max = sample(c(81:93), 1))
-  y2 <- runif(39, min = sample(c(36:49), 1), max = sample(c(66:75), 1))
-  x3 <- runif(39, min = sample(c(99:114), 1), max = sample(c(135:148), 1))
-  y3 <- runif(39, min = sample(c(1:15), 1), max = sample(c(30:45), 1))
-  
-  C[, 1] <- rbind(x1, x2, x3)
-  C[, 2] <- rbind(y1, y2, y3)
-  
-} else {          # design = "random"
-  
-  C <- as.matrix(matrix(0, ncol = 2, nrow = 117))
-  C[, 1] <- runif(117, min = 1, max = 148)
-  C[, 2] <- runif(117, min = 1, max = 75) 
-  
-}
-
-# Attribute each sampled point to one of the grid cells:
-# ******************************************************
-
-grid.size <- 1
-tri <- c()
-for (k in 1:nrow(C)) {
-  x <- floor((C[k, 1]) / (grid.size))
-  y <- floor((C[k, 2]) / (grid.size))
-  N <- y * 150 + x + 1
-  tri <- c(tri, N)
-}
-
-# We can only have one sampled point by grid cell:
-# ************************************************
-
-sort <- sort(tri)
-control <- length(levels(as.factor(sort)))
-while (control != nrow(C)) {
-  cible <- c()
-  for(k in 1:(length(sort)-1)) if (sort[k+1] == sort[k]) cible <- c(cible, k+1)
-  for (k in cible) {
-    if (length(which(seq(50, 1250, 50) == sort[k])) == 0) {
-      sort[k] = sort[k] + 1
-    } else {
-      sort[k] = sort[k] - 1
-    }
-  }
-  control <- length(levels(as.factor(sort)))
-}
-# We rearange 'C' so that all sampled point are in different grid cells ('sort'):
-C <- xy[sort, ]
-candidates <- listw.candidates(C, style = style)
+C <- C.list[[5]]
+candidates <- candidates.list[[5]]
+candidates_random <- candidates_RandomChoice.list[[5]]
 
    ######################
    ######################
@@ -532,7 +460,7 @@ candidates <- listw.candidates(C, style = style)
 
 # We keep the lines of MEM that correspond to the sampled cells ('tri'):
 # **********************************************************************
-MEMsub <- y_spa_broad_st[sort]
+MEMsub <- y_spa_broad_st[as.numeric(rownames(C))]
 
 # To compute the selection percentages of each W matrix:
 bestmod_indexB <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
@@ -554,7 +482,7 @@ for (i in 1:nperm) {
   R2_pop_broad <- cor(y_broad, y_spa_broad_st)^2
   resultsB_sub[2, c(1009+i, 3009+i)] <- R2_pop_broad
   
-  y_sub <- y_broad[sort]
+  y_sub <- y_broad[as.numeric(rownames(C))]
   
   # Real p-value and R2_sub:
   # ************************
@@ -581,8 +509,8 @@ for (i in 1:nperm) {
   } else resultsB_sub[1, 9+i] <- 1
   
   # Random choice of a W matrix:
-  samp <- sample(c(1:length(candidates)), 1)
-  W.ran <- candidates[[samp]]
+  samp <- sample(c(1:length(candidates_random)), 1)
+  W.ran <- candidates_random[[samp]]
   
   memsel_ran <- MEM.modsel(y_sub, W.ran, autocor = MEM_model, correction = corr)
   if (class(memsel_ran) != "NULL") {
@@ -655,7 +583,7 @@ write.table(bestmod_indexB, file = bestmod_index_file_name, sep = "\t")
 
 # We keep the lines of MEM that correspond to the sampled cells ('tri'):
 # **********************************************************************
-MEMsub <- y_spa_med_st[sort]
+MEMsub <- y_spa_med_st[as.numeric(rownames(C))]
 
 # To compute the selection percentages of each W matrix:
 bestmod_indexM <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
@@ -677,7 +605,7 @@ for (i in 1:nperm) {
   R2_pop_med <- cor(y_med, y_spa_med_st)^2
   resultsM_sub[2, c(1009+i, 3009+i)] <- R2_pop_med
   
-  y_sub <- y_med[sort]
+  y_sub <- y_med[as.numeric(rownames(C))]
   
   # Real p-value and R2_sub:
   # ************************
@@ -704,8 +632,8 @@ for (i in 1:nperm) {
   } else resultsM_sub[1, 9+i] <- 1
   
   # Random choice of a W matrix:
-  samp <- sample(c(1:length(candidates)), 1)
-  W.ran <- candidates[[samp]]
+  samp <- sample(c(1:length(candidates_random)), 1)
+  W.ran <- candidates_random[[samp]]
   
   memsel_ran <- MEM.modsel(y_sub, W.ran, autocor = MEM_model, correction = corr)
   if (class(memsel_ran) != "NULL") {
