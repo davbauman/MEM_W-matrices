@@ -13,7 +13,7 @@ library(spdep)
 source("test.W.R2.R")
 # Function to compute the global test and FwdSel on the MEM variables (for typeIerror):
 MEMfwd.test <- function (y, mem) {
-  pval <- as.data.frame(anova.cca(rda(y, mem), permutations = 9999))$Pr[1]
+  pval <- as.data.frame(anova.cca(rda(y, mem), permutations = 999))$Pr[1]
   if (pval <= 0.05) {
     R2adj <- RsquareAdj(rda(y, mem))$adj.r.squared
     class <- class(try(fsel <- forward.sel(y, mem, adjR2thresh = R2adj, nperm = 999), TRUE))

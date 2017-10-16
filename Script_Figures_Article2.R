@@ -7,35 +7,35 @@ library(ggplot2)
 
 #### Input of the data ####
 # Pour les points :
-chic <- read.table("typeIerror.txt", h = T, sep = "\t")
+chic <- read.table("fig_typeIerror_all_(details).txt", h = T, sep = "\t")
 str(chic)
-chic$Connectivity <- factor(chic$Connectivity, levels = c("del", "gab", "rel", "mst", 
-                                                          "DB"))
-chic$Weighting <- factor(chic$Weighting, levels = c("bin", "Linear", "Concave-down", 
-                                                    "Concave-up"))
-chic$Design <- factor(chic$Design, levels = c("Regular", "Random"))
+chic$Connectivity <- factor(chic$Connectivity, levels = c("del", "gab", "rel", "mst", "db"))
+#chic$Connectivity <- factor(chic$Connectivity, levels = c("graph-based", "distance-based"))
+chic$Weighting <- factor(chic$Weighting, levels = c("Binary", "Linear", "Concave-down", 
+                                                    "Concave-up", "PCNM"))
+chic$Design <- factor(chic$Design, levels = c("Clustered", "Random"))
+
 # Pour les barplots :
-chic2 <- read.table("typeIerror_means.txt", h = T, sep = "\t")
-chic2$Connectivity <- factor(chic2$Connectivity, levels = c("del", "gab", "rel", "mst", 
-                                                          "DB"))
-chic2$Design <- factor(chic2$Design, levels = c("Regular", "Random"))
+chic2 <- read.table("fig_typeIerror_means_(details).txt", h = T, sep = "\t")
+chic2$Connectivity <- factor(chic2$Connectivity, levels = c("del", "gab", "rel", "mst", "db"))
+#chic2$Connectivity <- factor(chic2$Connectivity, levels = c("graph-based", "distance-based"))
+chic2$Design <- factor(chic2$Design, levels = c("Clustered", "Random"))
 
 # Barplots et points superposés :
 # *******************************
 
-b <- ggplot(chic2, aes(Connectivity, mean))
+b <- ggplot(chic2, aes(Connectivity, Mean))
 b <- b + geom_bar(stat = "identity", position = "stack", color = "black", 
-                  fill = "gray80") + 
-   facet_wrap(~Design, ncol =  2) 
+                  fill = "gray80") + facet_wrap(~Design, ncol =  2) 
 b <- b + theme(panel.background = element_rect(fill = "white"), 
                panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
                    element_line(colour = "white"))
-b <- b + geom_point(data = chic, aes(Connectivity, TypeIerror, 
+b <- b + geom_point(data = chic, aes(Connectivity, typeIerror, 
                                      color = factor(Weighting),
                                      shape = factor(Weighting)), size = 1.5)  
 b <- b + scale_shape_manual("Weighting function:", 
-                            labels = c("Binary", "Linear", "Concave-down", "Concave-up"),
-                            values = c(15:18))
+                            labels = c("Binary", "Linear", "Concave-down", "Concave-up", 
+                                       "PCNM"), values = c(15:19))
 b <- b + labs(x = "Connectivity matrix", y = "Type I error rate")
 b <- b + theme(axis.title = element_text(size = 10.5))
 b <- b + theme(axis.line.x = element_line(color = "black", size = 0.5, 
@@ -46,9 +46,10 @@ b <- b + expand_limits(y = 0)
 b <- b + scale_color_manual("Weighting function:", 
                             labels = c("Binary", "Linear", "Concave-down", "Concave-up", 
                                        "PCNM"), 
-                            values = c("blue1", "black", "firebrick3", "forestgreen")) 
+                            values = c("blue1", "black", "firebrick3", "forestgreen", 
+                                       "darkorange2")) 
 b <- b + geom_hline(yintercept = 0.05, linetype = 2) + 
-    scale_y_continuous(breaks = seq(0.05, 0.35, by = 0.05))
+    scale_y_continuous(breaks = seq(0.01, 0.06, by = 0.01))
 b
 
 ###################################
@@ -56,83 +57,168 @@ b
 ###################################
 
 # Pour les moyennes (barplots):
-data <- read.table("power_accuracy.txt", h = T, sep = "\t")
+data <- read.table("fig_power_POP_means_styleB.txt", h = T, sep = "\t")
 str(data)
-data$Connectivity <- factor(data$Connectivity, levels = c("del", "gab", "rel", "mst", 
-                                                          "DB"))
-data$Design <- factor(data$Design, levels = c("Regular", "Random"))
-data$Scale <- factor(data$Scale, levels = c("Broad", "Medium", "Fine"))
+data$Connectivity <- factor(data$Connectivity, levels = c("del", "gab", "rel", "mst", "db"))
+data$Strength <- factor(data$Strength, levels = c("Strong", "Weak"))
+data$Scale <- factor(data$Scale, levels = c("Broad", "Fine"))
+data$Design <- factor(data$Design, levels = c("Clustered", "Random"))
 # Pour les matrices A:
-data_w <- read.table("power_accuracy_detail.txt", h = T, sep = "\t")
+data_w <- read.table("fig_power_POP_all_styleB.txt", h = T, sep = "\t")
 str(data_w)
-data_w$Connectivity <- factor(data_w$Connectivity, levels = c("del", "gab", "rel", "mst", 
-                                                              "DB"))
-data_w$Design <- factor(data_w$Design, levels = c("Regular", "Random"))
-data_w$Scale <- factor(data_w$Scale, levels = c("Broad", "Medium", "Fine"))
+data_w$Connectivity <- factor(data_w$Connectivity, levels = c("del", "gab", "rel", "mst", "db"))
+data_w$Design <- factor(data_w$Design, levels = c("Clustered", "Random"))
+data_w$Scale <- factor(data_w$Scale, levels = c("Broad", "Fine"))
 data_w$Weighting <- factor(data_w$Weighting, levels = c("Binary", "Linear",
-                                                        "Concave-down", "Concave-up"))
+                                                        "Concave-down", "Concave-up", "PCNM"))
+
+# On construit le graphique séparément pour les deux niveaux du facteur Strength:
+# *******************************************************************************
+strength <- "Strong"    # Strong or Weak
+datasub <- subset(data, Strength == strength)
+data_wsub <- subset(data_w, Strength == strength)
 
 # Dans aes, on précise ce qui sur x et y, et à partir de quel facteur on sépare
 # les barres :
-(g <- ggplot(data, aes(x = Connectivity, y = deltaR2)) 
-  + facet_grid(Design~Scale))
-(g <- g + geom_bar(stat = "identity", position = position_dodge(), color = "black",
-                   fill = "gray80"))
-(g <- g + theme(panel.background = element_rect(fill = "white"), 
+g <- ggplot(datasub, aes(x = Connectivity, y = dR2sub)) + facet_grid(Design~Scale)
+g <- g + geom_bar(stat = "identity", position = position_dodge(), color = "black",
+                   fill = "gray80")
+g <- g + theme(panel.background = element_rect(fill = "white"), 
                panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
-                 element_line(colour = "white")))
-(g <- g + labs(x = "Connectivity matrix", y = "Accuracy (ΔR²)"))
-(g <- g + theme(axis.title = element_text(size = 10.5)))
-(g <- g + theme(axis.line.x = element_line(color = "black", size = 0.5, 
+                 element_line(colour = "white"))
+g <- g + labs(x = "Connectivity matrix", y = "Accuracy (ΔR²sub)")
+g <- g + theme(axis.title = element_text(size = 10.5))
+g <- g + theme(axis.line.x = element_line(color = "black", size = 0.5, 
                                           linetype = "solid"),
                axis.line.y = element_line(color = "black", size = 0.5, 
-                                          linetype = "solid")))
-(g <- g + geom_hline(yintercept = 0, linetype = 1) + 
-  scale_y_continuous(breaks = round(seq(-0.5, 0.1, by = 0.1), 2)))
-(g <- g + geom_point(data = data_w, aes(Connectivity, deltaR2, 
+                                          linetype = "solid"))
+g <- g + geom_hline(yintercept = 0, linetype = 1) + 
+  scale_y_continuous(breaks = round(seq(-0.5, 0.1, by = 0.1), 2))
+g <- g + geom_point(data = data_wsub, aes(Connectivity, dR2sub, 
                                   color = factor(Weighting),
-                                  shape = factor(Weighting)), size = 1.5)) 
-(g <- g + scale_shape_manual("Weighting function:", 
-                            labels = c("Binary", "Linear", "Concave-down", "Concave-up"),
-                            values = c(15:18)))
+                                  shape = factor(Weighting)), size = 1.5)
+g <- g + scale_shape_manual("Weighting function:", 
+                            labels = c("Binary", "Linear", "Concave-down", "Concave-up", 
+                                       "PCNM"), values = c(15:19))
 (g <- g + scale_color_manual("Weighting function:", 
                             labels = c("Binary", "Linear", "Concave-down", 
-                                       "Concave-up"), 
-                            values = c("blue1", "black", "firebrick3", "forestgreen")))
+                                       "Concave-up", "PCNM"), 
+                            values = c("blue1", "black", "firebrick3", "forestgreen", 
+                                       "darkorange2")))
 
 #### Power ####
 ###############
 
-(w <- ggplot(data, aes(x = Connectivity, y = power)) 
- + facet_grid(Design~Scale))
-(w <- w + geom_bar(stat = "identity", position = position_dodge(), color = "black",
-                   fill = "gray80"))
-(w <- w + theme(panel.background = element_rect(fill = "white"), 
+w <- ggplot(datasub, aes(x = Connectivity, y = Power)) + facet_grid(Design~Scale)
+w <- w + geom_bar(stat = "identity", position = position_dodge(), color = "black",
+                   fill = "gray80")
+w <- w + theme(panel.background = element_rect(fill = "white"), 
                 panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
-                  element_line(colour = "white")))
-(w <- w + labs(x = "Connectivity matrix", y = "Power"))
-(w <- w + theme(axis.title = element_text(size = 10.5)))
-(w <- w + theme(axis.line.x = element_line(color = "black", size = 0.5, 
+                  element_line(colour = "white"))
+w <- w + labs(x = "Connectivity matrix", y = "Power")
+w <- w + theme(axis.title = element_text(size = 10.5))
+w <- w + theme(axis.line.x = element_line(color = "black", size = 0.5, 
                                            linetype = "solid"),
                 axis.line.y = element_line(color = "black", size = 0.5, 
-                                           linetype = "solid")))
-(w <- w + geom_hline(yintercept = 0, linetype = 1) + 
-    scale_y_continuous(breaks = round(seq(0, 1, by = 0.2), 1)))
-(w <- w + geom_point(data = data_w, aes(Connectivity, power, 
+                                           linetype = "solid"))
+w <- w + geom_hline(yintercept = 0, linetype = 1) + 
+    scale_y_continuous(breaks = round(seq(0, 1, by = 0.2), 1))
+w <- w + geom_point(data = data_wsub, aes(Connectivity, Power, 
                                         color = factor(Weighting),
-                                        shape = factor(Weighting)), size = 1.5)) 
-(w <- w + scale_shape_manual("Weighting function:", 
-                             labels = c("Binary", "Linear", "Concave-down", "Concave-up"),
-                             values = c(15:18)))
+                                        shape = factor(Weighting)), size = 1.5)
+w <- w + scale_shape_manual("Weighting function:", 
+                             labels = c("Binary", "Linear", "Concave-down", "Concave-up",
+                                        "PCNM"),
+                             values = c(15:19))
 (w <- w + scale_color_manual("Weighting function:", 
                              labels = c("Binary", "Linear", "Concave-down", 
-                                        "Concave-up"), 
-                             values = c("blue1", "black", "firebrick3", "forestgreen")))
+                                        "Concave-up", "PCNM"), 
+                             values = c("blue1", "black", "firebrick3", "forestgreen", 
+                                        "darkorange2")))
 
 # Visualisation simultannée de la puissance et de la précision :
 # **************************************************************
 library(gridExtra)
 grid.arrange(b, w, g, nrow = 3)
+
+####################################
+### Figure TypeIerror MEM.modsel ###
+####################################
+
+typeIopt <- read.table("fig_typeIerror_Opt.txt", h = T, sep = "\t")
+
+k <- ggplot(typeIopt, aes(Correction, typeIerror))
+k <- k + geom_bar(stat = "identity", position = "stack", color = "black", 
+                  fill = "gray80") + facet_wrap(~Design, ncol =  2) 
+k <- k + theme(panel.background = element_rect(fill = "white"), 
+               panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
+                 element_line(colour = "white"))
+k <- k + labs(x = "global p-value correction", y = "Type I error rate")
+k <- k + theme(axis.title = element_text(size = 10.5))
+k <- k + theme(axis.line.x = element_line(color = "black", size = 0.5, 
+                                          linetype = "solid"),
+               axis.line.y = element_line(color = "black", size = 0.5, 
+                                          linetype = "solid"))
+k <- k + expand_limits(y = 0)
+k <- k + geom_hline(yintercept = 0.05, linetype = 2) + 
+  scale_y_continuous(breaks = seq(0.05, 0.35, by = 0.05))
+k
+
+#########################################
+### Power and Accuracy - Optimisation ###
+#########################################
+
+data <- read.table("fig_power_Optim_POP_styleB.txt", h = T, sep = "\t")
+str(data)
+data$Strength <- factor(data$Strength, levels = c("Strong", "Weak"))
+data$Scale <- factor(data$Scale, levels = c("Broad", "Fine"))
+data$Design <- factor(data$Design, levels = c("Clustered", "Random"))
+data$W_mat <- factor(data$W_mat, levels = c("Optimisation", "Random"))
+
+# On construit le graphique séparément pour les deux niveaux du facteur Strength:
+# *******************************************************************************
+strength <- "Strong"    # Strong or Weak
+datasub <- subset(data, Strength == strength)
+
+# Dans aes, on précise ce qui sur x et y, et à partir de quel facteur on sépare les barres :
+(q <- ggplot(datasub, aes(x = W_mat, y = dR2sub)) + facet_grid(Design~Scale))
+(q <- q + geom_bar(stat = "identity", position = position_dodge(), color = "black",
+                   fill = "gray80"))
+(q <- q + theme(panel.background = element_rect(fill = "white"), 
+                panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
+                  element_line(colour = "white")))
+(q <- q + labs(x = "Choice of the W matrix", y = "Accuracy (ΔR²sub)"))
+(q <- q + theme(axis.title = element_text(size = 10.5)))
+(q <- q + theme(axis.line.x = element_line(color = "black", size = 0.5, 
+                                           linetype = "solid"),
+                axis.line.y = element_line(color = "black", size = 0.5, 
+                                           linetype = "solid")))
+(q <- q + geom_hline(yintercept = 0, linetype = 1) + 
+    scale_y_continuous(breaks = round(seq(-0.5, 0.1, by = 0.1), 2)))
+(q <- q + geom_errorbar(data = datasub, aes(ymin = dR2sub - sd, ymax = dR2sub + sd), 
+                        width = .2, position = position_dodge(0.05)))
+
+#### Power ####
+###############
+
+(p <- ggplot(datasub, aes(x = W_mat, y = Power)) 
+ + facet_grid(Design~Scale))
+(p <- p + geom_bar(stat = "identity", position = position_dodge(), color = "black",
+                   fill = "gray80"))
+(p <- p + theme(panel.background = element_rect(fill = "white"), 
+                panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
+                  element_line(colour = "white")))
+(p <- p + labs(x = "Connectivity matrix", y = "Power"))
+(p <- p + theme(axis.title = element_text(size = 10.5)))
+(p <- p + theme(axis.line.x = element_line(color = "black", size = 0.5, 
+                                           linetype = "solid"),
+                axis.line.y = element_line(color = "black", size = 0.5, 
+                                           linetype = "solid")))
+(p <- p + geom_hline(yintercept = 0, linetype = 1) + 
+    scale_y_continuous(breaks = round(seq(0, 1, by = 0.2), 1)))
+(p <- p + geom_errorbar(data = datasub, aes(ymin = Power - sd, ymax = Power + sd), 
+                        width = .2, position = position_dodge(0.05)))
+
 
 #############################
 #############################

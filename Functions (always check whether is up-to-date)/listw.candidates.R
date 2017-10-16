@@ -56,7 +56,7 @@ listw.candidates <- function (coord, style = "B", del = TRUE, gab = TRUE, rel = 
   # Construction of the list of W matrix candidates: 
   # ************************************************
   if (del == TRUE) {
-    Y.del <- tri2nb(coord)
+    Y.del <- tri2nb(jitter(as.matrix(coord), factor = 0.001))
     if (binary == TRUE) {
       count <- count + 1
       listwcand[[count]] <- nb2listw(Y.del, style = style)

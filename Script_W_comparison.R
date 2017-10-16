@@ -52,7 +52,7 @@ MEMfwd.test <- function (y, mem) {
 MEM_model = "positive"   # Either "positive" or "negative"
 
 # Sampling design:
-design <- "clustered"    # Either "clustered" or "random"
+design <- "random"    # Either "clustered" or "random"
 
 nperm <- 1000
 
@@ -216,9 +216,9 @@ for (i in 1:nperm) {
 
   # Sampling scheme:
   # ****************
+  set.seed(i)
   
   if (design == "clustered") {
-    set.seed(i)
     zones <- matrix(c(1:9, rep(c(0, 30, 60), times = 3),rep(c(0, 30, 60), each = 3)), ncol = 3)
     sampled.zones <- sample(c(1:9), 3)
     grid <- expand.grid(c(6:25), c(6:25))
@@ -270,7 +270,7 @@ resultsB_pop[c(1:29), 3009+i] <- as.numeric(R2_sub - R2_pop_broad)
    # Connectivity matrices (B):
    # **************************
 
-Y.del <- tri2nb(C) 
+Y.del <- tri2nb(jitter(as.matrix(C), factor = 0.001)) 
 Y.gab <- graph2nb(gabrielneigh(as.matrix(C), nnmult = 5), sym = TRUE)
 Y.rel <- graph2nb(relativeneigh(as.matrix(C), nnmult = 5), sym = TRUE)
 Y.mst <- mst.nb(xy.d1)

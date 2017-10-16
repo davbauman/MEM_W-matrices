@@ -190,9 +190,9 @@ for (i in 1:nperm) {
   
   # Sampling scheme:
   # ****************
+  set.seed(i)
   
   if (design == "clustered") {
-    set.seed(i)
     zones <- matrix(c(1:9, rep(c(0, 30, 60), times = 3),rep(c(0, 30, 60), each = 3)), ncol = 3)
     sampled.zones <- sample(c(1:9), 3)
     grid <- expand.grid(c(6:25), c(6:25))
