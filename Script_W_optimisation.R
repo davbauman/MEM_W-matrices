@@ -43,7 +43,7 @@ namesw <- c("Gabriel_Linear", "Gabriel_Concave down (y = 5)",
             "DBMEM_PCNM")
 
 # IMPORTANT 1: Remember to define the same corresponding arguments in the function 
-# listw.candidates (object 'candidates' in the simulation loop!
+# listw.candidates (object 'candidates') in the simulation loop!
 # IMPORTANT2: Remember to define the list of candidates from which a random W matrix will be 
 # picked up at each simulation to compare a random choice to the optimisation procedure 
 # (object 'candidates_random').
@@ -114,6 +114,12 @@ resultsM_popran <- resultsM_pop
 resultsB_subran <- resultsB_sub
 resultsM_subran <- resultsM_sub
 
+# Result matrices for the db-MEM_PCNM:
+resultsB_popPCNM <- resultsB_pop
+resultsM_popPCNM <- resultsM_pop
+resultsB_subPCNM <- resultsB_sub
+resultsM_subPCNM <- resultsM_sub
+
 # The MEM are built for a full grid (50 x 25 cells):
 # **************************************************
 
@@ -173,7 +179,7 @@ resultsM_popran[2, c(1010:2009, 3010:4009)] <- R2_pop_med
 
 C.list <- vector("list", nperm)
 candidates.list <- vector("list", nperm)
-candidates_RandomChoice.list <- vector("list", nperm)
+candidates_PCNM.list <- vector("list", nperm)
 
 bestmod_indexB <- as.data.frame(matrix(nrow = length(namesw), ncol = nperm + 2))
 colnames(bestmod_indexB) <- c("W matrix", "Proportion", paste("best", c(1:nperm),
@@ -193,7 +199,7 @@ for (i in 1:nperm) {
   set.seed(i)
   
   if (design == "clustered") {
-    zones <- matrix(c(1:9, rep(c(0, 30, 60), times = 3),rep(c(0, 30, 60), each = 3)), ncol = 3)
+    zones <- matrix(c(1:9, rep(c(0, 30, 60), times = 3), rep(c(0, 30, 60), each = 3)), ncol = 3)
     sampled.zones <- sample(c(1:9), 3)
     grid <- expand.grid(c(6:25), c(6:25))
     for (w in 1:3) {
@@ -233,25 +239,41 @@ for (i in 1:nperm) {
   resultsB_pop[3, c(2009+i, 3009+i)] <- R2_sub
   resultsB_pop[1, 3009+i] <- R2_sub - R2_pop_broad
   
-  resultsB_popran[4, 9+i] <- lmp(lm)
+  resultsB_popran[4, 9+i] <- lmp(lm)                   
+  resultsB_popPCNM[4, 9+i] <- lmp(lm)
   resultsB_popran[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsB_popPCNM[3, c(2009+i, 3009+i)] <- R2_sub
   resultsB_popran[1, 3009+i] <- R2_sub - R2_pop_broad
+  resultsB_popPCNM[1, 3009+i] <- R2_sub - R2_pop_broad
 
   # MEM.modsel function: Optimisation of the W matrix, and comparison against a random
   # choice of the W matrix: **********************************************************
   # **********************************************************************************
   # **********************************************************************************
-   candidates <- listw.candidates(C, del = F, rel = F, binary = F, fconcup = F, style = style)
+   # The function listw.candidates, here, is called with all arguments written explicitly,
+   # regardless of the default values of the arguments:
+   candidates <- listw.candidates(C, del = F, gab = T, rel = F, mst = T, DB = F, PCNM = T, 
+                                  binary = F, flin = T, fconcdown = T, fconcup = F, 
+                                  style = style, y_fconcdown = 5, y_fconcup = 0.5)
    candidates.list[[i]] <- candidates
+   # Minimum distance keeping all quadrats connected:
    thresh <- give.thresh(dist(C))
-   candidates_random <- listw.candidates(C, DB = TRUE, DBthresh = thresh, style = style)
-   candidates_RandomChoice.list[[i]] <- candidates_random
+   # Maximum distance at which spatial autocorrelation is detected:
+   y_vario <- variogmultiv(y_sub, C, nclass = 30)
+   uplim <- y_vario$d[which.max(y_vario$var)]
+   if (uplim <= thresh) uplim <- max(dist(C))
+   # Here the function listw.candidates is called using the default arguments:
+   candidates_random <- listw.candidates(C, DBthresh = seq(thresh, uplim, le = 10))
+   # db-MEM_PCNM:
+   candidates_db <- listw.candidates(C, del = F, gab = F, rel = F, mst = F, DB = F, PCNM = T,
+                                     style = style)
+   candidates_PCNM.list[[i]] <- candidates_db
   
    memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model, correction = corr)
    if (class(memsel) != "NULL") {
-      resultsB_pop[1, 9+i] <- memsel$pval
-      resultsB_pop[1, 1009+i] <- memsel$R2adj - R2_pop_broad
-      resultsB_pop[1, 2009+i] <- memsel$R2adj - R2_sub
+      resultsB_pop[1, 9+i] <- memsel$best$pval
+      resultsB_pop[1, 1009+i] <- memsel$best$R2adj - R2_pop_broad
+      resultsB_pop[1, 2009+i] <- memsel$best$R2adj - R2_sub
       bestmod_indexB[which(bestmod_indexB[, 1] == memsel$name), 2+i] <- 1
    } else resultsB_pop[1, 9+i] <- 1
    
@@ -261,10 +283,18 @@ for (i in 1:nperm) {
 
    memsel_ran <- MEM.modsel(y_sub, W.ran, autocor = MEM_model, correction = corr)
    if (class(memsel_ran) != "NULL") {
-     resultsB_popran[1, 9+i] <- memsel_ran$pval
-     resultsB_popran[1, 1009+i] <- memsel_ran$R2adj - R2_pop_broad
-     resultsB_popran[1, 2009+i] <- memsel_ran$R2adj - R2_sub
+     resultsB_popran[1, 9+i] <- memsel_ran$best$pval
+     resultsB_popran[1, 1009+i] <- memsel_ran$best$R2adj - R2_pop_broad
+     resultsB_popran[1, 2009+i] <- memsel_ran$best$R2adj - R2_sub
    } else resultsB_popran[1, 9+i] <- 1
+   
+   # db-MEM_PCNM:
+   memsel_db <- MEM.modsel(y_sub, candidates_db, autocor = MEM_model)
+   if (class(memsel_db) != "NULL") {
+     resultsB_popPCNM[1, 9+i] <- memsel_db$best$pval
+     resultsB_popPCNM[1, 1009+i] <- memsel_db$best$R2adj - R2_pop_broad
+     resultsB_popPCNM[1, 2009+i] <- memsel_db$best$R2adj - R2_sub
+   } else resultsB_popPCNM[1, 9+i] <- 1
    
 }         # End of the simulation ('for') loop
 
@@ -300,6 +330,21 @@ resultsB_popran[1, 9] <- sd(na.omit(as.numeric(resultsB_popran[1, c(3010:(nperm 
 # Actual significance rate:
 resultsB_popran[4, 3] <- length(which(resultsB_popran[4, c(10:(nperm + 9))] <= 0.05)) / nperm
 
+# For the db-MEM_PCNM:
+resultsB_popPCNM[1, 3] <- length(which(resultsB_popPCNM[1, c(10:(nperm + 9))] <= 0.05)) / nperm
+resultsB_popPCNM[1, 4] <- median(na.omit(as.numeric(resultsB_popPCNM[1, c(1010:(nperm + 
+                                                                                1009))])))
+resultsB_popPCNM[1, 5] <- sd(na.omit(as.numeric(resultsB_popPCNM[1, c(1010:(nperm + 1009))])))
+resultsB_popPCNM[1, 6] <- median(na.omit(as.numeric(resultsB_popPCNM[1, c(2010:(nperm + 
+                                                                                2009))])))
+resultsB_popPCNM[1, 7] <- sd(na.omit(as.numeric(resultsB_popPCNM[1, c(2010:(nperm + 2009))])))
+resultsB_popPCNM[1, 8] <- median(na.omit(as.numeric(resultsB_popPCNM[1, c(3010:(nperm + 
+                                                                                3009))])))
+resultsB_popPCNM[1, 9] <- sd(na.omit(as.numeric(resultsB_popPCNM[1, c(3010:(nperm + 3009))])))
+
+# Actual significance rate:
+resultsB_popPCNM[4, 3] <- length(which(resultsB_popPCNM[4, c(10:(nperm + 9))] <= 0.05)) / nperm
+
 # Proportion at which each W matrix was selected by MEM.modsel()
 # (proportions are computed on the total number of significant simulations only):
 for (j in 1:nrow(bestmod_indexB)) {
@@ -316,6 +361,10 @@ write.table(resultsB_pop, file = res_file_name, sep = "\t")
 res_file_name <- paste("Results_RandomChoice_pop", correction, intensity, "Broad", 
                        design, paste("style", style, ".txt", sep = ""), sep = "_")
 write.table(resultsB_popran, file = res_file_name, sep = "\t")
+
+res_file_name <- paste("Results_PCNM_pop", correction, intensity, "Broad", 
+                       design, paste("style", style, ".txt", sep = ""), sep = "_")
+write.table(resultsB_popPCNM, file = res_file_name, sep = "\t")
 
 bestmod_index_file_name <- paste("Bestmod-prop_ModSel_pop", correction, 
                             intensity, "Broad", design, paste("style", style, ".txt", 
@@ -355,21 +404,33 @@ for (i in 1:nperm) {
   resultsM_pop[3, c(2009+i, 3009+i)] <- R2_sub
   resultsM_pop[1, 3009+i] <- R2_sub - R2_pop_med
   
-  resultsM_popran[4, 9+i] <- lmp(lm)
+  resultsM_popran[4, 9+i] <- lmp(lm)                   
+  resultsM_popPCNM[4, 9+i] <- lmp(lm)
   resultsM_popran[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsM_popPCNM[3, c(2009+i, 3009+i)] <- R2_sub
   resultsM_popran[1, 3009+i] <- R2_sub - R2_pop_med
+  resultsM_popPCNM[1, 3009+i] <- R2_sub - R2_pop_med
   
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
   # **************************************************
   candidates <- candidates.list[[i]]
-  candidates_random <- candidates_RandomChoice.list[[i]]
+  candidates_db <- candidates_PCNM.list[[i]]
+  
+  # Minimum distance keeping all quadrats connected:
+  thresh <- give.thresh(dist(C))
+  # Maximum distance at which spatial autocorrelation is detected:
+  y_vario <- variogmultiv(y_sub, C, nclass = 30)
+  uplim <- y_vario$d[which.max(y_vario$var)]
+  if (uplim <= thresh) uplim <- max(dist(C))
+  # Here the function listw.candidates is called using the default arguments:
+  candidates_random <- listw.candidates(C, DBthresh = seq(thresh, uplim, le = 10))
   
   memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model, correction = corr)
   if (class(memsel) != "NULL") {
-    resultsM_pop[1, 9+i] <- memsel$pval
-    resultsM_pop[1, 1009+i] <- memsel$R2adj - R2_pop_med
-    resultsM_pop[1, 2009+i] <- memsel$R2adj - R2_sub
+    resultsM_pop[1, 9+i] <- memsel$best$pval
+    resultsM_pop[1, 1009+i] <- memsel$best$R2adj - R2_pop_med
+    resultsM_pop[1, 2009+i] <- memsel$best$R2adj - R2_sub
     bestmod_indexM[which(bestmod_indexM[, 1] == memsel$name), 2+i] <- 1
   } else resultsM_pop[1, 9+i] <- 1
   
@@ -379,10 +440,18 @@ for (i in 1:nperm) {
   
   memsel_ran <- MEM.modsel(y_sub, W.ran, autocor = MEM_model, correction = corr)
   if (class(memsel_ran) != "NULL") {
-    resultsM_popran[1, 9+i] <- memsel_ran$pval
-    resultsM_popran[1, 1009+i] <- memsel_ran$R2adj - R2_pop_med
-    resultsM_popran[1, 2009+i] <- memsel_ran$R2adj - R2_sub
+    resultsM_popran[1, 9+i] <- memsel_ran$best$pval
+    resultsM_popran[1, 1009+i] <- memsel_ran$best$R2adj - R2_pop_med
+    resultsM_popran[1, 2009+i] <- memsel_ran$best$R2adj - R2_sub
   } else resultsM_popran[1, 9+i] <- 1
+  
+  # db-MEM_PCNM:
+  memsel_db <- MEM.modsel(y_sub, candidates_db, autocor = MEM_model)
+  if (class(memsel_db) != "NULL") {
+    resultsM_popPCNM[1, 9+i] <- memsel_db$best$pval
+    resultsM_popPCNM[1, 1009+i] <- memsel_db$best$R2adj - R2_pop_med
+    resultsM_popPCNM[1, 2009+i] <- memsel_db$best$R2adj - R2_sub
+  } else resultsM_popPCNM[1, 9+i] <- 1
   
 }         # End of the simulation ('for') loop
 
@@ -418,6 +487,21 @@ resultsM_popran[1, 9] <- sd(na.omit(as.numeric(resultsM_popran[1, c(3010:(nperm 
 # Actual significance rate:
 resultsM_popran[4, 3] <- length(which(resultsM_popran[4, c(10:(nperm + 9))] <= 0.05)) / nperm
 
+# For the db-MEM_PCNM:
+resultsM_popPCNM[1, 3] <- length(which(resultsM_popPCNM[1, c(10:(nperm + 9))] <= 0.05)) / nperm
+resultsM_popPCNM[1, 4] <- median(na.omit(as.numeric(resultsM_popPCNM[1, c(1010:(nperm + 
+                                                                                  1009))])))
+resultsM_popPCNM[1, 5] <- sd(na.omit(as.numeric(resultsM_popPCNM[1, c(1010:(nperm + 1009))])))
+resultsM_popPCNM[1, 6] <- median(na.omit(as.numeric(resultsM_popPCNM[1, c(2010:(nperm + 
+                                                                                  2009))])))
+resultsM_popPCNM[1, 7] <- sd(na.omit(as.numeric(resultsM_popPCNM[1, c(2010:(nperm + 2009))])))
+resultsM_popPCNM[1, 8] <- median(na.omit(as.numeric(resultsM_popPCNM[1, c(3010:(nperm + 
+                                                                                  3009))])))
+resultsM_popPCNM[1, 9] <- sd(na.omit(as.numeric(resultsM_popPCNM[1, c(3010:(nperm + 3009))])))
+
+# Actual significance rate:
+resultsM_popPCNM[4, 3] <- length(which(resultsM_popPCNM[4, c(10:(nperm + 9))] <= 0.05)) / nperm
+
 # Proportion at which each W matrix was selected by MEM.modsel()
 # (proportions are computed on the total number of significant simulations only):
 for (j in 1:nrow(bestmod_indexM)) {
@@ -435,6 +519,10 @@ res_file_name <- paste("Results_RandomChoice_pop", correction, intensity, "Mediu
                        design, paste("style", style, ".txt", sep = ""), sep = "_")
 write.table(resultsM_popran, file = res_file_name, sep = "\t")
 
+res_file_name <- paste("Results_PCNM_pop", correction, intensity, "Medium", 
+                       design, paste("style", style, ".txt", sep = ""), sep = "_")
+write.table(resultsM_popPCNM, file = res_file_name, sep = "\t")
+
 bestmod_index_file_name <- paste("Bestmod-prop_ModSel_pop", correction, 
                                  intensity, "Medium", design, paste("style", style, ".txt", 
                                                                     sep = ""), sep = "_")
@@ -450,7 +538,16 @@ write.table(bestmod_indexM, file = bestmod_index_file_name, sep = "\t")
 
 C <- C.list[[5]]
 candidates <- candidates.list[[5]]
-candidates_random <- candidates_RandomChoice.list[[5]]
+candidates_db <- candidates_PCNM.list[[5]]
+
+# Minimum distance keeping all quadrats connected:
+thresh <- give.thresh(dist(C))
+# Maximum distance at which spatial autocorrelation is detected:
+y_vario <- variogmultiv(y_sub, C, nclass = 30)
+uplim <- y_vario$d[which.max(y_vario$var)]
+if (uplim <= thresh) uplim <- max(dist(C))
+# Here the function listw.candidates is called using the default arguments:
+candidates_random <- listw.candidates(C, DBthresh = seq(thresh, uplim, le = 10))
 
    ######################
    ######################
@@ -492,9 +589,12 @@ for (i in 1:nperm) {
   resultsB_sub[3, c(2009+i, 3009+i)] <- R2_sub
   resultsB_sub[1, 3009+i] <- R2_sub - R2_pop_broad
   
-  resultsB_subran[4, 9+i] <- lmp(lm)
+  resultsB_subran[4, 9+i] <- lmp(lm)                   
+  resultsB_subPCNM[4, 9+i] <- lmp(lm)
   resultsB_subran[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsB_subPCNM[3, c(2009+i, 3009+i)] <- R2_sub
   resultsB_subran[1, 3009+i] <- R2_sub - R2_pop_broad
+  resultsB_subPCNM[1, 3009+i] <- R2_sub - R2_pop_broad
 
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
@@ -502,9 +602,9 @@ for (i in 1:nperm) {
   
   memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model)
   if (class(memsel) != "NULL") {
-    resultsB_sub[1, 9+i] <- memsel$pval
-    resultsB_sub[1, 1009+i] <- memsel$R2adj - R2_pop_broad
-    resultsB_sub[1, 2009+i] <- memsel$R2adj - R2_sub
+    resultsB_sub[1, 9+i] <- memsel$best$pval
+    resultsB_sub[1, 1009+i] <- memsel$best$R2adj - R2_pop_broad
+    resultsB_sub[1, 2009+i] <- memsel$best$R2adj - R2_sub
     bestmod_indexB[which(bestmod_indexB[, 1] == memsel$name), 2+i] <- 1
   } else resultsB_sub[1, 9+i] <- 1
   
@@ -514,10 +614,18 @@ for (i in 1:nperm) {
   
   memsel_ran <- MEM.modsel(y_sub, W.ran, autocor = MEM_model, correction = corr)
   if (class(memsel_ran) != "NULL") {
-    resultsB_subran[1, 9+i] <- memsel_ran$pval
-    resultsB_subran[1, 1009+i] <- memsel_ran$R2adj - R2_pop_broad
-    resultsB_subran[1, 2009+i] <- memsel_ran$R2adj - R2_sub
+    resultsB_subran[1, 9+i] <- memsel_ran$best$pval
+    resultsB_subran[1, 1009+i] <- memsel_ran$best$R2adj - R2_pop_broad
+    resultsB_subran[1, 2009+i] <- memsel_ran$best$R2adj - R2_sub
   } else resultsB_subran[1, 9+i] <- 1
+  
+  # db-MEM_PCNM:
+  memsel_db <- MEM.modsel(y_sub, candidates_db, autocor = MEM_model)
+  if (class(memsel_db) != "NULL") {
+    resultsB_subPCNM[1, 9+i] <- memsel_db$best$pval
+    resultsB_subPCNM[1, 1009+i] <- memsel_db$best$R2adj - R2_pop_broad
+    resultsB_subPCNM[1, 2009+i] <- memsel_db$best$R2adj - R2_sub
+  } else resultsB_subPCNM[1, 9+i] <- 1
   
 }         # End of the simulation ('for') loop
 
@@ -553,6 +661,21 @@ resultsB_subran[1, 9] <- sd(na.omit(as.numeric(resultsB_subran[1, c(3010:(nperm 
 # Actual significance rate:
 resultsB_subran[4, 3] <- length(which(resultsB_subran[4, c(10:(nperm + 9))] <= 0.05)) / nperm
 
+# For the db-MEM_PCNM:
+resultsB_subPCNM[1, 3] <- length(which(resultsB_subPCNM[1, c(10:(nperm + 9))] <= 0.05)) / nperm
+resultsB_subPCNM[1, 4] <- median(na.omit(as.numeric(resultsB_subPCNM[1, c(1010:(nperm + 
+                                                                                  1009))])))
+resultsB_subPCNM[1, 5] <- sd(na.omit(as.numeric(resultsB_subPCNM[1, c(1010:(nperm + 1009))])))
+resultsB_subPCNM[1, 6] <- median(na.omit(as.numeric(resultsB_subPCNM[1, c(2010:(nperm + 
+                                                                                  2009))])))
+resultsB_subPCNM[1, 7] <- sd(na.omit(as.numeric(resultsB_subPCNM[1, c(2010:(nperm + 2009))])))
+resultsB_subPCNM[1, 8] <- median(na.omit(as.numeric(resultsB_subPCNM[1, c(3010:(nperm + 
+                                                                                  3009))])))
+resultsB_subPCNM[1, 9] <- sd(na.omit(as.numeric(resultsB_subPCNM[1, c(3010:(nperm + 3009))])))
+
+# Actual significance rate:
+resultsB_subPCNM[4, 3] <- length(which(resultsB_subPCNM[4, c(10:(nperm + 9))] <= 0.05)) / nperm
+
 # Proportion at which each W matrix was selected by MEM.modsel()
 # (proportions are computed on the total number of significant simulations only):
 for (j in 1:nrow(bestmod_indexB)) {
@@ -569,6 +692,10 @@ write.table(resultsB_sub, file = res_file_name, sep = "\t")
 res_file_name <- paste("Results_RandomChoice_sub", correction, intensity, "Broad", 
                        design, paste("style", style, ".txt", sep = ""), sep = "_")
 write.table(resultsB_subran, file = res_file_name, sep = "\t")
+
+res_file_name <- paste("Results_PCNM_sub", correction, intensity, "Broad", 
+                       design, paste("style", style, ".txt", sep = ""), sep = "_")
+write.table(resultsB_subPCNM, file = res_file_name, sep = "\t")
 
 bestmod_index_file_name <- paste("Bestmod-prop_ModSel_sub", correction, 
                                  intensity, "Broad", design, paste("style", style, ".txt", 
@@ -615,9 +742,12 @@ for (i in 1:nperm) {
   resultsM_sub[3, c(2009+i, 3009+i)] <- R2_sub
   resultsM_sub[1, 3009+i] <- R2_sub - R2_pop_med
   
-  resultsM_subran[4, 9+i] <- lmp(lm)
+  resultsM_subran[4, 9+i] <- lmp(lm)                   
+  resultsM_subPCNM[4, 9+i] <- lmp(lm)
   resultsM_subran[3, c(2009+i, 3009+i)] <- R2_sub
+  resultsM_subPCNM[3, c(2009+i, 3009+i)] <- R2_sub
   resultsM_subran[1, 3009+i] <- R2_sub - R2_pop_med
+  resultsM_subPCNM[1, 3009+i] <- R2_sub - R2_pop_med
   
   # MEM.modsel function: Optimisation of the W matrix:
   # **************************************************
@@ -625,9 +755,9 @@ for (i in 1:nperm) {
   
   memsel <- MEM.modsel(y_sub, candidates, autocor = MEM_model)
   if (class(memsel) != "NULL") {
-    resultsM_sub[1, 9+i] <- memsel$pval
-    resultsM_sub[1, 1009+i] <- memsel$R2adj - R2_pop_med
-    resultsM_sub[1, 2009+i] <- memsel$R2adj - R2_sub
+    resultsM_sub[1, 9+i] <- memsel$best$pval
+    resultsM_sub[1, 1009+i] <- memsel$best$R2adj - R2_pop_med
+    resultsM_sub[1, 2009+i] <- memsel$best$R2adj - R2_sub
     bestmod_indexM[which(bestmod_indexM[, 1] == memsel$name), 2+i] <- 1
   } else resultsM_sub[1, 9+i] <- 1
   
@@ -637,10 +767,18 @@ for (i in 1:nperm) {
   
   memsel_ran <- MEM.modsel(y_sub, W.ran, autocor = MEM_model, correction = corr)
   if (class(memsel_ran) != "NULL") {
-    resultsM_subran[1, 9+i] <- memsel_ran$pval
-    resultsM_subran[1, 1009+i] <- memsel_ran$R2adj - R2_pop_med
-    resultsM_subran[1, 2009+i] <- memsel_ran$R2adj - R2_sub
+    resultsM_subran[1, 9+i] <- memsel_ran$best$pval
+    resultsM_subran[1, 1009+i] <- memsel_ran$best$R2adj - R2_pop_med
+    resultsM_subran[1, 2009+i] <- memsel_ran$best$R2adj - R2_sub
   } else resultsM_subran[1, 9+i] <- 1
+  
+  # db-MEM_PCNM:
+  memsel_db <- MEM.modsel(y_sub, candidates_db, autocor = MEM_model)
+  if (class(memsel_db) != "NULL") {
+    resultsM_subPCNM[1, 9+i] <- memsel_db$best$pval
+    resultsM_subPCNM[1, 1009+i] <- memsel_db$best$R2adj - R2_pop_broad
+    resultsM_subPCNM[1, 2009+i] <- memsel_db$best$R2adj - R2_sub
+  } else resultsM_subPCNM[1, 9+i] <- 1
   
 }         # End of the simulation ('for') loop
 
@@ -676,6 +814,21 @@ resultsM_subran[1, 9] <- sd(na.omit(as.numeric(resultsM_subran[1, c(3010:(nperm 
 # Actual significance rate:
 resultsM_subran[4, 3] <- length(which(resultsM_subran[4, c(10:(nperm + 9))] <= 0.05)) / nperm
 
+# For the db-MEM_PCNM:
+resultsM_subPCNM[1, 3] <- length(which(resultsM_subPCNM[1, c(10:(nperm + 9))] <= 0.05)) / nperm
+resultsM_subPCNM[1, 4] <- median(na.omit(as.numeric(resultsM_subPCNM[1, c(1010:(nperm + 
+                                                                                  1009))])))
+resultsM_subPCNM[1, 5] <- sd(na.omit(as.numeric(resultsM_subPCNM[1, c(1010:(nperm + 1009))])))
+resultsM_subPCNM[1, 6] <- median(na.omit(as.numeric(resultsM_subPCNM[1, c(2010:(nperm + 
+                                                                                  2009))])))
+resultsM_subPCNM[1, 7] <- sd(na.omit(as.numeric(resultsM_subPCNM[1, c(2010:(nperm + 2009))])))
+resultsM_subPCNM[1, 8] <- median(na.omit(as.numeric(resultsM_subPCNM[1, c(3010:(nperm + 
+                                                                                  3009))])))
+resultsM_subPCNM[1, 9] <- sd(na.omit(as.numeric(resultsM_subPCNM[1, c(3010:(nperm + 3009))])))
+
+# Actual significance rate:
+resultsM_subPCNM[4, 3] <- length(which(resultsM_subPCNM[4, c(10:(nperm + 9))] <= 0.05)) / nperm
+
 # Proportion at which each W matrix was selected by MEM.modsel()
 # (proportions are computed on the total number of significant simulations only):
 for (j in 1:nrow(bestmod_indexM)) {
@@ -692,6 +845,10 @@ write.table(resultsM_sub, file = res_file_name, sep = "\t")
 res_file_name <- paste("Results_RandomChoice_sub", correction, intensity, "Medium", 
                        design, paste("style", style, ".txt", sep = ""), sep = "_")
 write.table(resultsM_subran, file = res_file_name, sep = "\t")
+
+res_file_name <- paste("Results_PCNM_sub", correction, intensity, "Medium", 
+                       design, paste("style", style, ".txt", sep = ""), sep = "_")
+write.table(resultsB_popPCNM, file = res_file_name, sep = "\t")
 
 bestmod_index_file_name <- paste("Bestmod-prop_ModSel_sub", correction, 
                                  intensity, "Medium", design, paste("style", style, ".txt", 

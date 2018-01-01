@@ -1,3 +1,6 @@
+library(ggplot2)
+library(gridExtra)
+
 ###################################
 #### Figure Accuracy (deltaR²) ####
 ###################################
@@ -148,7 +151,6 @@ x <- x + scale_shape_manual("Weighting function:",
 
 # Visualisation simultannée de la puissance et de la précision :
 # **************************************************************
-library(gridExtra)
 grid.arrange(g, h, w, x, nrow = 2)
 
 ####################################
@@ -183,7 +185,7 @@ str(data)
 data$Strength <- factor(data$Strength, levels = c("Strong", "Weak"))
 data$Scale <- factor(data$Scale, levels = c("Broad", "Fine"))
 data$Design <- factor(data$Design, levels = c("Clustered", "Random"))
-data$W_mat <- factor(data$W_mat, levels = c("Optim", "Random"))
+data$W_mat <- factor(data$W_mat, levels = c("Opt", "Rand", "DB"))
 
 # On construit le graphique séparément pour les deux niveaux du facteur Strength:
 # *******************************************************************************
@@ -193,18 +195,18 @@ datasub <- subset(data, Strength == strength)
 # Dans aes, on précise ce qui sur x et y, et à partir de quel facteur on sépare les barres :
 q <- ggplot(datasub, aes(x = W_mat, y = dR2sub)) + facet_grid(Design~Scale)
 q <- q + geom_bar(stat = "identity", position = position_dodge(), color = "black",
-                   fill = "gray80")
+                  fill = "gray80")
 q <- q + theme(panel.background = element_rect(fill = "white"), 
-                panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
-                  element_line(colour = "white"))
+               panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
+               element_line(colour = "white"))
 q <- q + labs(x = "Choice of the W matrix", y = "Accuracy (ΔR²sub)")
 q <- q + theme(axis.title.x = element_blank())
 q <- q + theme(axis.line.x = element_line(color = "black", size = 0.5, 
-                                           linetype = "solid"),
-                axis.line.y = element_line(color = "black", size = 0.5, 
-                                           linetype = "solid"))
+                                          linetype = "solid"),
+               axis.line.y = element_line(color = "black", size = 0.5, 
+                                          linetype = "solid"))
 q <- q + geom_hline(yintercept = 0, linetype = 1) + 
-    scale_y_continuous(breaks = round(seq(-0.5, 0.1, by = 0.1), 2))
+     scale_y_continuous(breaks = round(seq(-0.5, 0.1, by = 0.1), 2))
 (q <- q + geom_errorbar(data = datasub, aes(ymin = dR2sub - sd, ymax = dR2sub + sd), 
                         width = .2, position = position_dodge(0.05)))
 
@@ -213,18 +215,16 @@ q <- q + geom_hline(yintercept = 0, linetype = 1) +
 
 p <- ggplot(datasub, aes(x = W_mat, y = Power)) + facet_grid(Design~Scale)
 p <- p + geom_bar(stat = "identity", position = position_dodge(), color = "black",
-                   fill = "gray80")
+                  fill = "gray80")
 p <- p + theme(panel.background = element_rect(fill = "white"), 
-                panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
-                  element_line(colour = "white"))
+               panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
+               element_line(colour = "white"))
 p <- p + labs(x = "Choice of the W matrix", y = "Power")
 p <- p + theme(axis.title = element_text(size = 10.5))
-p <- p + theme(axis.line.x = element_line(color = "black", size = 0.5, 
-                                           linetype = "solid"),
-                axis.line.y = element_line(color = "black", size = 0.5, 
-                                           linetype = "solid"))
+p <- p + theme(axis.line.x = element_line(color = "black", size = 0.5, linetype = "solid"),
+               axis.line.y = element_line(color = "black", size = 0.5, linetype = "solid"))
 p <- p + geom_hline(yintercept = 0, linetype = 1) + 
-    scale_y_continuous(breaks = round(seq(0, 1, by = 0.2), 1))
+     scale_y_continuous(breaks = round(seq(0, 1, by = 0.2), 1))
 (p <- p + geom_errorbar(data = datasub, aes(ymin = Power - sd, ymax = Power + sd), 
                         width = .2, position = position_dodge(0.05)))
 
@@ -239,15 +239,13 @@ r <- r + geom_bar(stat = "identity", position = position_dodge(), color = "black
                   fill = "gray80")
 r <- r + theme(panel.background = element_rect(fill = "white"), 
                panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
-                 element_line(colour = "white"))
+               element_line(colour = "white"))
 r <- r + labs(x = "", y = "")
 r <- r + theme(axis.title = element_blank())
-r <- r + theme(axis.line.x = element_line(color = "black", size = 0.5, 
-                                          linetype = "solid"),
-               axis.line.y = element_line(color = "black", size = 0.5, 
-                                          linetype = "solid"))
+r <- r + theme(axis.line.x = element_line(color = "black", size = 0.5, linetype = "solid"),
+               axis.line.y = element_line(color = "black", size = 0.5, linetype = "solid"))
 r <- r + geom_hline(yintercept = 0, linetype = 1) + 
-  scale_y_continuous(breaks = round(seq(-0.5, 0.1, by = 0.1), 2))
+     scale_y_continuous(breaks = round(seq(-0.5, 0.1, by = 0.1), 2))
 (r <- r + geom_errorbar(data = datasub, aes(ymin = dR2sub - sd, ymax = dR2sub + sd), 
                         width = .2, position = position_dodge(0.05)))
 
@@ -259,15 +257,13 @@ o <- o + geom_bar(stat = "identity", position = position_dodge(), color = "black
                   fill = "gray80")
 o <- o + theme(panel.background = element_rect(fill = "white"), 
                panel.grid.major = element_line(colour = "white"), panel.grid.minor = 
-                 element_line(colour = "white"))
+               element_line(colour = "white"))
 o <- o + labs(x = "Choice of the W matrix", y = "Power")
 o <- o + theme(axis.title.y = element_blank())
-o <- o + theme(axis.line.x = element_line(color = "black", size = 0.5, 
-                                          linetype = "solid"),
-               axis.line.y = element_line(color = "black", size = 0.5, 
-                                          linetype = "solid"))
+o <- o + theme(axis.line.x = element_line(color = "black", size = 0.5, linetype = "solid"),
+               axis.line.y = element_line(color = "black", size = 0.5, linetype = "solid"))
 o <- o + geom_hline(yintercept = 0, linetype = 1) + 
-  scale_y_continuous(breaks = round(seq(0, 1, by = 0.2), 1))
+     scale_y_continuous(breaks = round(seq(0, 1, by = 0.2), 1))
 (o <- o + geom_errorbar(data = datasub, aes(ymin = Power - sd, ymax = Power + sd), 
                         width = .2, position = position_dodge(0.05)))
 
